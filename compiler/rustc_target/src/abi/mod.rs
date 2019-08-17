@@ -595,6 +595,166 @@ impl AbiAndPrefAlign {
     }
 }
 
+/// An aligned size preference.
+/// Better name appreciated.
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Encodable, Decodable)]
+pub struct MemoryLayoutPref {
+    /// The minimum size in bytes for a memory block of this layout.
+    /// NOTE: *not* rounded up to alignment.
+    pub size: Size,
+
+    /// The minimum and preferered byte alignment for a memory block of this layout.
+    pub align: AbiAndPrefAlign,
+}
+
+impl MemoryLayoutPref {
+    pub fn new_simple(size: Size, align: Align) -> Self {
+        Self { size, align: AbiAndPrefAlign::new(align) }
+    }
+
+    pub fn new(size: Size, align: AbiAndPrefAlign) -> Self {
+        Self { size, align }
+    }
+
+    #[inline]
+    pub fn from_bits(bits: u64) -> Self {
+        // Avoid potential overflow from `bits + 7`.
+        Self::from_bytes(bits / 8 + ((bits % 8) + 7) / 8)
+    }
+
+    #[inline]
+    pub fn from_bytes(bytes: u64) -> Self {
+        Self::new_simple(Size::from_bytes(bytes), Align::from_bytes(bytes).unwrap())
+    }
+
+    /// Creates a layout describing the record that can hold a value
+    /// of the same layout as `self`, but that also is aligned to
+    /// alignment `align` (measured in bytes).
+    ///
+    /// If `self` already meets the prescribed alignment, then returns
+    /// `self`.
+    ///
+    /// Note that this method does not add any padding to the overall
+    /// size, regardless of whether the returned layout has a different
+    /// alignment. In other words, if `K` has size 16, `K.align_to(32)`
+    /// will *still* have size 16.
+    #[inline]
+    pub fn align_to(self, align: AbiAndPrefAlign) -> Self {
+        Self::new(self.size, self.align.max(align))
+    }
+
+    /// Creates a layout by rounding the size of this layout up to a multiple
+    /// of the layout's alignment.
+    #[inline]
+    pub fn stride_to(self, align: Align) -> Self {
+        Self::new(self.size.align_to(align), self.align)
+    }
+
+    #[inline]
+    pub fn max(self, other: Self) -> Self {
+        Self::new(self.size.max(other.size), self.align.max(other.align))
+    }
+
+    pub fn padding_needed_for(self, align: Align) -> Size {
+        self.stride_to(align).size - self.size
+    }
+
+    /// Creates a layout describing the record for a `[T; n]`.
+    #[inline]
+    pub fn repeat(self, count: u64) -> Self {
+        return self * count;
+    }
+    /// Creates a layout describing the record for `self` followed by
+    /// `next`, including any necessary padding to ensure that `next`
+    /// will be properly aligned, but *no trailing padding*.
+    #[inline]
+    pub fn extend(self, other: Self) -> (Self, Size) {
+        let p2 = self.stride_to(other.align.abi).size;
+        (Self::new(p2 + other.size, self.align.max(other.align)), p2)
+    }
+
+    #[inline]
+    pub fn pack_to(self, align: AbiAndPrefAlign) -> Self {
+        Self::new(self.size, self.align.min(align))
+    }
+
+    #[inline]
+    pub fn align_and_stride_to(self, align: AbiAndPrefAlign) -> Self {
+        self.align_to(align).stride_to(align.abi)
+    }
+
+    pub fn strided(self) -> Self {
+        self.stride_to(self.align.abi)
+    }
+
+    pub fn strided_pref(self) -> Self {
+        self.stride_to(self.align.pref)
+    }
+
+    pub fn stride(self) -> Size {
+        self.strided().size
+    }
+
+    pub fn pref_stride(self) -> Size {
+        self.strided_pref().size
+    }
+
+    #[inline]
+    pub fn is_aligned(self, align: Align) -> bool {
+        self.size.is_aligned(align)
+    }
+
+    #[inline]
+    pub fn checked_add<C: HasDataLayout>(self, other: Self, cx: &C) -> Option<Self> {
+        let size = self.stride_to(other.align.abi).size.checked_add(other.size, cx)?;
+        Some(Self::new(size, self.align))
+    }
+
+    #[inline]
+    pub fn checked_mul<C: HasDataLayout>(self, count: u64, cx: &C) -> Option<Self> {
+        Some(if count == 0 {
+            Self::new(Size::ZERO, self.align)
+        } else {
+            Self::new(self.stride().checked_mul(count - 1, cx)?, self.align) + self
+        })
+    }
+}
+
+impl Add for MemoryLayoutPref {
+    type Output = Self;
+    #[inline]
+    fn add(self, other: Self) -> Self {
+        self.extend(other).0
+    }
+}
+
+impl Mul<MemoryLayoutPref> for u64 {
+    type Output = MemoryLayoutPref;
+    #[inline]
+    fn mul(self, size: MemoryLayoutPref) -> MemoryLayoutPref {
+        size * self
+    }
+}
+
+impl Mul<u64> for MemoryLayoutPref {
+    type Output = Self;
+    #[inline]
+    fn mul(self, count: u64) -> Self {
+        if count == 0 {
+            Self::new(Size::ZERO, self.align)
+        } else {
+            Self::new(self.stride() * (count - 1), self.align) + self
+        }
+    }
+}
+
+impl AddAssign for MemoryLayoutPref {
+    #[inline]
+    fn add_assign(&mut self, other: Self) {
+        *self = *self + other;
+    }
+}
+
 /// Integers, also used for enum discriminants.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, HashStable_Generic)]
 pub enum Integer {
