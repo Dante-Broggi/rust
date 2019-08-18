@@ -468,8 +468,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                 (Some((i, field)), None, None) => {
                     // Field fills the struct and it has a scalar or scalar pair ABI.
                     if offsets[i].bytes() == 0
-                        && memory_pref.align.abi == field.align.abi
-                        && memory_pref.size == field.size
+                        && memory_pref.memory_layout() == field.memory_pref.memory_layout()
                     {
                         match field.abi {
                             // For plain scalars, or vectors of them, we can't unpack
@@ -845,20 +844,20 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                         return Err(LayoutError::Unknown(ty));
                     }
 
-                    let mut align =
+                    let base_align =
                         if def.repr.pack.is_some() { dl.i8_align } else { dl.aggregate_align };
 
+                    let mut memory_pref = MemoryLayoutPref::new(Size::ZERO, base_align);
+
                     if let Some(repr_align) = def.repr.align {
-                        align = align.max(AbiAndPrefAlign::new(repr_align));
+                        memory_pref = memory_pref.align_to(AbiAndPrefAlign::new(repr_align));
                     }
 
                     let optimize = !def.repr.inhibit_union_abi_opt();
-                    let mut size = Size::ZERO;
                     let mut abi = Abi::Aggregate { sized: true };
                     let index = VariantIdx::new(0);
                     for field in &variants[index] {
                         assert!(!field.is_unsized());
-                        align = align.max(field.align);
 
                         // If all non-ZST fields have the same ABI, forward this ABI
                         if optimize && !field.is_zst() {
@@ -876,7 +875,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                                 }
                             };
 
-                            if size == Size::ZERO {
+                            if memory_pref.size == Size::ZERO {
                                 // first non ZST: initialize 'abi'
                                 abi = field_abi;
                             } else if abi != field_abi {
@@ -885,14 +884,15 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                             }
                         }
 
-                        size = cmp::max(size, field.size);
+                        memory_pref = memory_pref.max(field.memory_pref);
                     }
 
                     if let Some(pack) = def.repr.pack {
-                        align = align.min(AbiAndPrefAlign::new(pack));
+                        memory_pref = memory_pref.pack_to(AbiAndPrefAlign::new(pack));
                     }
 
-                    let memory_pref = MemoryLayoutPref::new(size, align).strided();
+                    // ensure stride == size
+                    let memory_pref = memory_pref.strided();
 
                     return Ok(tcx.intern_layout(Layout {
                         variants: Variants::Single { index },
