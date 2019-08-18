@@ -40,7 +40,7 @@ fn emit_direct_ptr_va_arg(
         list.immediate()
     };
 
-    let ptr = bx.load(va_list_ty, va_list_addr, bx.tcx().data_layout.pointer_align.abi);
+    let ptr = bx.load(va_list_ty, va_list_addr, bx.tcx().data_layout.pointer.align.abi);
 
     let (addr, addr_align) = if allow_higher_align && align > slot_size {
         (round_pointer_up_to_alignment(bx, ptr, align, bx.cx().type_i8p()), align)
@@ -51,7 +51,7 @@ fn emit_direct_ptr_va_arg(
     let aligned_size = size.align_to(slot_size).bytes() as i32;
     let full_direct_size = bx.cx().const_i32(aligned_size);
     let next = bx.inbounds_gep(bx.type_i8(), addr, &[full_direct_size]);
-    bx.store(next, va_list_addr, bx.tcx().data_layout.pointer_align.abi);
+    bx.store(next, va_list_addr, bx.tcx().data_layout.pointer.align.abi);
 
     if size.bytes() < slot_size.bytes() && bx.tcx().sess.target.endian == Endian::Big {
         let adjusted_size = bx.cx().const_i32((slot_size.bytes() - size.bytes()) as i32);
@@ -74,8 +74,8 @@ fn emit_ptr_va_arg(
     let (llty, size, align) = if indirect {
         (
             bx.cx.layout_of(bx.cx.tcx.mk_imm_ptr(target_ty)).llvm_type(bx.cx),
-            bx.cx.data_layout().pointer_size,
-            bx.cx.data_layout().pointer_align,
+            bx.cx.data_layout().pointer.size,
+            bx.cx.data_layout().pointer.align,
         )
     } else {
         (layout.llvm_type(bx.cx), layout.size, layout.align)
@@ -146,7 +146,7 @@ fn emit_aapcs_va_arg(
 
     let top_type = bx.type_i8p();
     let top = in_reg.struct_gep(va_list_ty, va_list_addr, reg_top_index);
-    let top = in_reg.load(top_type, top, bx.tcx().data_layout.pointer_align.abi);
+    let top = in_reg.load(top_type, top, bx.tcx().data_layout.pointer.align.abi);
 
     // reg_value = *(@top + reg_off_v);
     let mut reg_addr = in_reg.gep(bx.type_i8(), top, &[reg_off_v]);

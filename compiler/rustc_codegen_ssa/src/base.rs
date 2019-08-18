@@ -155,7 +155,7 @@ pub fn unsized_info<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
 
             if let Some(entry_idx) = vptr_entry_idx {
                 let ptr_ty = cx.type_i8p();
-                let ptr_align = cx.tcx().data_layout.pointer_align.abi;
+                let ptr_align = cx.tcx().data_layout.pointer.align.abi;
                 let llvtable = bx.pointercast(old_info, bx.type_ptr_to(ptr_ty));
                 let gep = bx.inbounds_gep(
                     ptr_ty,

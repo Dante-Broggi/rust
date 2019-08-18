@@ -38,7 +38,7 @@ declare_lint_pass!(UnportableVariant => [ENUM_CLIKE_UNPORTABLE_VARIANT]);
 impl<'tcx> LateLintPass<'tcx> for UnportableVariant {
     #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap, clippy::cast_sign_loss)]
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
-        if cx.tcx.data_layout.pointer_size.bits() != 64 {
+        if cx.tcx.data_layout.pointer.size.bits() != 64 {
             return;
         }
         if let ItemKind::Enum(def, _) = &item.kind {

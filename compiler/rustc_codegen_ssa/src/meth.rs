@@ -22,7 +22,7 @@ impl<'a, 'tcx> VirtualIndex {
 
         let llty = bx.fn_ptr_backend_type(fn_abi);
         let llvtable = bx.pointercast(llvtable, bx.type_ptr_to(llty));
-        let ptr_align = bx.tcx().data_layout.pointer_align.abi;
+        let ptr_align = bx.tcx().data_layout.pointer.align.abi;
         let gep = bx.inbounds_gep(llty, llvtable, &[bx.const_usize(self.0)]);
         let ptr = bx.load(llty, gep, ptr_align);
         bx.nonnull_metadata(ptr);
@@ -41,7 +41,7 @@ impl<'a, 'tcx> VirtualIndex {
 
         let llty = bx.type_isize();
         let llvtable = bx.pointercast(llvtable, bx.type_ptr_to(llty));
-        let usize_align = bx.tcx().data_layout.pointer_align.abi;
+        let usize_align = bx.tcx().data_layout.pointer.align.abi;
         let gep = bx.inbounds_gep(llty, llvtable, &[bx.const_usize(self.0)]);
         let ptr = bx.load(llty, gep, usize_align);
         // Vtable loads are invariant.
@@ -75,7 +75,7 @@ pub fn get_vtable<'tcx, Cx: CodegenMethods<'tcx>>(
     let vtable_alloc_id = tcx.vtable_allocation((ty, trait_ref));
     let vtable_allocation = tcx.global_alloc(vtable_alloc_id).unwrap_memory();
     let vtable_const = cx.const_data_from_alloc(vtable_allocation);
-    let align = cx.data_layout().pointer_align.abi;
+    let align = cx.data_layout().pointer.align.abi;
     let vtable = cx.static_addr_of(vtable_const, align, Some("vtable"));
 
     cx.create_vtable_metadata(ty, trait_ref, vtable);

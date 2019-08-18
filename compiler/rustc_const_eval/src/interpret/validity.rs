@@ -316,8 +316,8 @@ impl<'rt, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> ValidityVisitor<'rt, 'mir, '
                 try_validation!(
                     self.ecx.memory.check_ptr_access_align(
                         vtable,
-                        3 * self.ecx.tcx.data_layout.pointer_size, // drop, size, align
-                        self.ecx.tcx.data_layout.pointer_align.abi,
+                        3 * self.ecx.tcx.data_layout.pointer.size, // drop, size, align
+                        self.ecx.tcx.data_layout.pointer.align.abi,
                         CheckInAllocMsg::InboundsTest, // will anyway be replaced by validity message
                     ),
                     self.path,

@@ -49,7 +49,7 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
         let vtable_slot = vtable.offset(ptr_size * idx, self)?;
         let vtable_slot = self
             .memory
-            .get(vtable_slot, ptr_size, self.tcx.data_layout.pointer_align.abi)?
+            .get(vtable_slot, ptr_size, self.tcx.data_layout.pointer.align.abi)?
             .expect("cannot be a ZST");
         let fn_ptr = self.scalar_to_ptr(vtable_slot.read_ptr_sized(Size::ZERO)?.check_init()?);
         self.memory.get_fn(fn_ptr)
@@ -67,7 +67,7 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
             .get(
                 vtable,
                 pointer_size * u64::try_from(COMMON_VTABLE_ENTRIES.len()).unwrap(),
-                self.tcx.data_layout.pointer_align.abi,
+                self.tcx.data_layout.pointer.align.abi,
             )?
             .expect("cannot be a ZST");
         let drop_fn = vtable
@@ -103,7 +103,7 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
             .get(
                 vtable,
                 pointer_size * u64::try_from(COMMON_VTABLE_ENTRIES.len()).unwrap(),
-                self.tcx.data_layout.pointer_align.abi,
+                self.tcx.data_layout.pointer.align.abi,
             )?
             .expect("cannot be a ZST");
         let size = vtable
@@ -132,7 +132,7 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
         let vtable_slot = vtable.offset(pointer_size * idx, self)?;
         let new_vtable = self
             .memory
-            .get(vtable_slot, pointer_size, self.tcx.data_layout.pointer_align.abi)?
+            .get(vtable_slot, pointer_size, self.tcx.data_layout.pointer.align.abi)?
             .expect("cannot be a ZST");
 
         let new_vtable = self.scalar_to_ptr(new_vtable.read_ptr_sized(Size::ZERO)?.check_init()?);

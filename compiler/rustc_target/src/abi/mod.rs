@@ -28,12 +28,11 @@ pub struct TargetDataLayout {
     pub i128_align: AbiAndPrefAlign,
     pub f32_align: AbiAndPrefAlign,
     pub f64_align: AbiAndPrefAlign,
-    pub pointer_size: Size,
-    pub pointer_align: AbiAndPrefAlign,
+    pub pointer: MemoryLayoutPref,
     pub aggregate_align: AbiAndPrefAlign,
 
     /// Alignments for vector types.
-    pub vector_align: Vec<(Size, AbiAndPrefAlign)>,
+    pub vector_align: Vec<MemoryLayoutPref>,
 
     pub instruction_address_space: AddressSpace,
 
@@ -55,13 +54,9 @@ impl Default for TargetDataLayout {
             i128_align: AbiAndPrefAlign { abi: align(32), pref: align(64) },
             f32_align: AbiAndPrefAlign::new(align(32)),
             f64_align: AbiAndPrefAlign::new(align(64)),
-            pointer_size: Size::from_bits(64),
-            pointer_align: AbiAndPrefAlign::new(align(64)),
+            pointer: MemoryLayoutPref::from_bits(64),
             aggregate_align: AbiAndPrefAlign { abi: align(0), pref: align(64) },
-            vector_align: vec![
-                (Size::from_bits(64), AbiAndPrefAlign::new(align(64))),
-                (Size::from_bits(128), AbiAndPrefAlign::new(align(128))),
-            ],
+            vector_align: vec![MemoryLayoutPref::from_bits(64), MemoryLayoutPref::from_bits(128)],
             instruction_address_space: AddressSpace::DATA,
             c_enum_min_size: Integer::I32,
         }
@@ -117,8 +112,9 @@ impl TargetDataLayout {
                 ["f32", ref a @ ..] => dl.f32_align = align(a, "f32")?,
                 ["f64", ref a @ ..] => dl.f64_align = align(a, "f64")?,
                 [p @ "p", s, ref a @ ..] | [p @ "p0", s, ref a @ ..] => {
-                    dl.pointer_size = size(s, p)?;
-                    dl.pointer_align = align(a, p)?;
+                    let pointer_size = size(s, p)?;
+                    let pointer_align = align(a, p)?;
+                    dl.pointer = MemoryLayoutPref::new(pointer_size, pointer_align)
                 }
                 [s, ref a @ ..] if s.starts_with('i') => {
                     let bits = match s[1..].parse::<u64>() {
@@ -147,12 +143,12 @@ impl TargetDataLayout {
                 [s, ref a @ ..] if s.starts_with('v') => {
                     let v_size = size(&s[1..], "v")?;
                     let a = align(a, s)?;
-                    if let Some(v) = dl.vector_align.iter_mut().find(|v| v.0 == v_size) {
-                        v.1 = a;
+                    if let Some(v) = dl.vector_align.iter_mut().find(|v| v.size == v_size) {
+                        v.align = a;
                         continue;
                     }
                     // No existing entry, add a new one.
-                    dl.vector_align.push((v_size, a));
+                    dl.vector_align.push(MemoryLayoutPref::new(v_size, a));
                 }
                 _ => {} // Ignore everything else.
             }
@@ -168,11 +164,11 @@ impl TargetDataLayout {
             ));
         }
 
-        if dl.pointer_size.bits() != target.pointer_width.into() {
+        if dl.pointer.size.bits() != target.pointer_width.into() {
             return Err(format!(
                 "inconsistent target specification: \"data-layout\" claims \
                  pointers are {}-bit, while \"target-pointer-width\" is `{}`",
-                dl.pointer_size.bits(),
+                dl.pointer.size.bits(),
                 target.pointer_width
             ));
         }
@@ -195,7 +191,7 @@ impl TargetDataLayout {
     /// address space on 64-bit ARMv8 and x86_64.
     #[inline]
     pub fn obj_size_bound(&self) -> u64 {
-        match self.pointer_size.bits() {
+        match self.pointer.size.bits() {
             16 => 1 << 15,
             32 => 1 << 31,
             64 => 1 << 47,
@@ -205,7 +201,7 @@ impl TargetDataLayout {
 
     #[inline]
     pub fn ptr_sized_integer(&self) -> Integer {
-        match self.pointer_size.bits() {
+        match self.pointer.size.bits() {
             16 => I16,
             32 => I32,
             64 => I64,
@@ -215,7 +211,7 @@ impl TargetDataLayout {
 
     #[inline]
     pub fn vector_align(&self, vec_size: Size) -> AbiAndPrefAlign {
-        for &(size, align) in &self.vector_align {
+        for &MemoryLayoutPref { size, align } in &self.vector_align {
             if size == vec_size {
                 return align;
             }
@@ -877,7 +873,7 @@ impl Primitive {
             Int(i, _) => i.size(),
             F32 => Size::from_bits(32),
             F64 => Size::from_bits(64),
-            Pointer => dl.pointer_size,
+            Pointer => dl.pointer.size,
         }
     }
 
@@ -888,7 +884,7 @@ impl Primitive {
             Int(i, _) => i.align(dl),
             F32 => dl.f32_align,
             F64 => dl.f64_align,
-            Pointer => dl.pointer_align,
+            Pointer => dl.pointer.align,
         }
     }
 

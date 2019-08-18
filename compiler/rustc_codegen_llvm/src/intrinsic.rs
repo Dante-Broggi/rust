@@ -306,7 +306,7 @@ impl IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                         // For rusty ABIs, small aggregates are actually passed
                         // as `RegKind::Integer` (see `FnAbi::adjust_for_abi`),
                         // so we re-use that same threshold here.
-                        layout.size <= self.data_layout().pointer_size * 2
+                        layout.size <= self.data_layout().pointer.size * 2
                     }
                 };
 
@@ -523,7 +523,7 @@ fn codegen_msvc_try(
         //      }
         //
         // More information can be found in libstd's seh.rs implementation.
-        let ptr_align = bx.tcx().data_layout.pointer_align.abi;
+        let ptr_align = bx.tcx().data_layout.pointer.align.abi;
         let slot = bx.alloca(bx.type_i8p(), ptr_align);
         let try_func_ty = bx.type_func(&[bx.type_i8p()], bx.type_void());
         bx.invoke(try_func_ty, try_func, &[data], normal.llbb(), catchswitch.llbb(), None);
@@ -711,7 +711,7 @@ fn codegen_emcc_try(
 
         // We need to pass two values to catch_func (ptr and is_rust_panic), so
         // create an alloca and pass a pointer to that.
-        let ptr_align = bx.tcx().data_layout.pointer_align.abi;
+        let ptr_align = bx.tcx().data_layout.pointer.align.abi;
         let i8_align = bx.tcx().data_layout.i8_align.abi;
         let catch_data_type = bx.type_struct(&[bx.type_i8p(), bx.type_bool()], false);
         let catch_data = catch.alloca(catch_data_type, ptr_align);
@@ -1082,11 +1082,11 @@ fn generic_simd_intrinsic(
         let (i_xn, in_elem_bitwidth) = match in_elem.kind() {
             ty::Int(i) => (
                 args[0].immediate(),
-                i.bit_width().unwrap_or_else(|| bx.data_layout().pointer_size.bits()),
+                i.bit_width().unwrap_or_else(|| bx.data_layout().pointer.size.bits()),
             ),
             ty::Uint(i) => (
                 args[0].immediate(),
-                i.bit_width().unwrap_or_else(|| bx.data_layout().pointer_size.bits()),
+                i.bit_width().unwrap_or_else(|| bx.data_layout().pointer.size.bits()),
             ),
             _ => return_error!(
                 "vector argument `{}`'s element type `{}`, expected integer element type",
@@ -1832,7 +1832,7 @@ unsupported {} from `{}` with element `{}` of size `{}` to `{}`"#,
         let lhs = args[0].immediate();
         let rhs = args[1].immediate();
         let is_add = name == sym::simd_saturating_add;
-        let ptr_bits = bx.tcx().data_layout.pointer_size.bits() as _;
+        let ptr_bits = bx.tcx().data_layout.pointer.size.bits() as _;
         let (signed, elem_width, elem_ty) = match *in_elem.kind() {
             ty::Int(i) => (true, i.bit_width().unwrap_or(ptr_bits), bx.cx.type_int_from_ty(i)),
             ty::Uint(i) => (false, i.bit_width().unwrap_or(ptr_bits), bx.cx.type_uint_from_ty(i)),

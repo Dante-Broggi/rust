@@ -169,7 +169,7 @@ impl Allocation {
         // Compute new pointer tags, which also adjusts the bytes.
         let mut bytes = self.bytes;
         let mut new_relocations = Vec::with_capacity(self.relocations.0.len());
-        let ptr_size = cx.data_layout().pointer_size.bytes_usize();
+        let ptr_size = cx.data_layout().pointer.size.bytes_usize();
         let endian = cx.data_layout().endian;
         for &(offset, alloc_id) in self.relocations.iter() {
             let idx = offset.bytes_usize();
@@ -355,7 +355,7 @@ impl<Tag: Provenance, Extra> Allocation<Tag, Extra> {
         // Now we do the actual reading.
         let bits = read_target_uint(cx.data_layout().endian, bytes).unwrap();
         // See if we got a pointer.
-        if range.size != cx.data_layout().pointer_size {
+        if range.size != cx.data_layout().pointer.size {
             // Not a pointer.
             // *Now*, we better make sure that the inside is free of relocations too.
             self.check_relocations(cx, range)?;
@@ -422,7 +422,7 @@ impl<Tag: Copy, Extra> Allocation<Tag, Extra> {
     pub fn get_relocations(&self, cx: &impl HasDataLayout, range: AllocRange) -> &[(Size, Tag)] {
         // We have to go back `pointer_size - 1` bytes, as that one would still overlap with
         // the beginning of this range.
-        let start = range.start.bytes().saturating_sub(cx.data_layout().pointer_size.bytes() - 1);
+        let start = range.start.bytes().saturating_sub(cx.data_layout().pointer.size.bytes() - 1);
         self.relocations.range(Size::from_bytes(start)..range.end())
     }
 
@@ -456,7 +456,7 @@ impl<Tag: Copy, Extra> Allocation<Tag, Extra> {
 
             (
                 relocations.first().unwrap().0,
-                relocations.last().unwrap().0 + cx.data_layout().pointer_size,
+                relocations.last().unwrap().0 + cx.data_layout().pointer.size,
             )
         };
         let start = range.start;
@@ -473,7 +473,7 @@ impl<Tag: Copy, Extra> Allocation<Tag, Extra> {
         if last > end {
             if Tag::ERR_ON_PARTIAL_PTR_OVERWRITE {
                 return Err(AllocError::PartialPointerOverwrite(
-                    last - cx.data_layout().pointer_size,
+                    last - cx.data_layout().pointer.size,
                 ));
             }
             self.init_mask.set_range(end, last, false);

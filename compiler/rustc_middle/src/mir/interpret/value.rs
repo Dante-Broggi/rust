@@ -246,7 +246,7 @@ impl<Tag> Scalar<Tag> {
 
     #[inline]
     pub fn from_machine_usize(i: u64, cx: &impl HasDataLayout) -> Self {
-        Self::from_uint(i, cx.data_layout().pointer_size)
+        Self::from_uint(i, cx.data_layout().pointer.size)
     }
 
     #[inline]
@@ -273,7 +273,7 @@ impl<Tag> Scalar<Tag> {
 
     #[inline]
     pub fn from_machine_isize(i: i64, cx: &impl HasDataLayout) -> Self {
-        Self::from_int(i, cx.data_layout().pointer_size)
+        Self::from_int(i, cx.data_layout().pointer.size)
     }
 
     #[inline]
@@ -402,7 +402,7 @@ impl<'tcx, Tag: Provenance> Scalar<Tag> {
     }
 
     pub fn to_machine_usize(self, cx: &impl HasDataLayout) -> InterpResult<'static, u64> {
-        let b = self.to_bits(cx.data_layout().pointer_size)?;
+        let b = self.to_bits(cx.data_layout().pointer.size)?;
         Ok(u64::try_from(b).unwrap())
     }
 
@@ -439,7 +439,7 @@ impl<'tcx, Tag: Provenance> Scalar<Tag> {
     }
 
     pub fn to_machine_isize(self, cx: &impl HasDataLayout) -> InterpResult<'static, i64> {
-        let sz = cx.data_layout().pointer_size;
+        let sz = cx.data_layout().pointer.size;
         let b = self.to_bits(sz)?;
         let b = sz.sign_extend(b) as i128;
         Ok(i64::try_from(b).unwrap())
