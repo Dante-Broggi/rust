@@ -17,7 +17,7 @@ use rustc_ast::Mutability;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_middle::mir::display_allocation;
 use rustc_middle::ty::{Instance, ParamEnv, TyCtxt};
-use rustc_target::abi::{Align, HasDataLayout, Size, TargetDataLayout};
+use rustc_target::abi::{Align, HasDataLayout, MemoryLayout, Size, TargetDataLayout};
 
 use super::{
     alloc_range, AllocId, AllocMap, AllocRange, Allocation, CheckInAllocMsg, GlobalAlloc,
@@ -203,11 +203,10 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
 
     pub fn allocate(
         &mut self,
-        size: Size,
-        align: Align,
+        layout: MemoryLayout,
         kind: MemoryKind<M::MemoryKind>,
     ) -> InterpResult<'static, Pointer<M::PointerTag>> {
-        let alloc = Allocation::uninit(size, align, M::PANIC_ON_ALLOC_FAIL)?;
+        let alloc = Allocation::uninit(layout.size, layout.align, M::PANIC_ON_ALLOC_FAIL)?;
         Ok(self.allocate_with(alloc, kind))
     }
 
@@ -241,9 +240,8 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
     pub fn reallocate(
         &mut self,
         ptr: Pointer<Option<M::PointerTag>>,
-        old_size_and_align: Option<(Size, Align)>,
-        new_size: Size,
-        new_align: Align,
+        old_layout: Option<MemoryLayout>,
+        new_layout: MemoryLayout,
         kind: MemoryKind<M::MemoryKind>,
     ) -> InterpResult<'tcx, Pointer<M::PointerTag>> {
         let (alloc_id, offset, ptr) = self.ptr_get_alloc(ptr)?;
@@ -256,9 +254,9 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
 
         // For simplicities' sake, we implement reallocate as "alloc, copy, dealloc".
         // This happens so rarely, the perf advantage is outweighed by the maintenance cost.
-        let new_ptr = self.allocate(new_size, new_align, kind)?;
-        let old_size = match old_size_and_align {
-            Some((size, _align)) => size,
+        let new_ptr = self.allocate(new_layout, kind)?;
+        let old_size = match old_layout {
+            Some(old_layout) => old_layout.size,
             None => self.get_raw(alloc_id)?.size(),
         };
         // This will also call the access hooks.
@@ -267,10 +265,10 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
             Align::ONE,
             new_ptr.into(),
             Align::ONE,
-            old_size.min(new_size),
+            old_size.min(new_layout.size),
             /*nonoverlapping*/ true,
         )?;
-        self.deallocate(ptr.into(), old_size_and_align, kind)?;
+        self.deallocate(ptr.into(), old_layout, kind)?;
 
         Ok(new_ptr)
     }
@@ -278,7 +276,7 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
     pub fn deallocate(
         &mut self,
         ptr: Pointer<Option<M::PointerTag>>,
-        old_size_and_align: Option<(Size, Align)>,
+        old_layout: Option<MemoryLayout>,
         kind: MemoryKind<M::MemoryKind>,
     ) -> InterpResult<'tcx> {
         let (alloc_id, offset, ptr) = self.ptr_get_alloc(ptr)?;
@@ -319,7 +317,7 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
                 kind
             );
         }
-        if let Some((size, align)) = old_size_and_align {
+        if let Some(MemoryLayout { size, align }) = old_layout {
             if size != alloc.size() || align != alloc.align {
                 throw_ub_format!(
                     "incorrect layout on deallocation: {} has size {} and alignment {}, but gave size {} and alignment {}",

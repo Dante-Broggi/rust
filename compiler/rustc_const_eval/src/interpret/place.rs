@@ -920,9 +920,8 @@ where
                         let memory = self
                             .memory_of(&meta, &local_layout)?
                             .expect("Cannot allocate for non-dyn-sized type");
-                        let (size, align) = (memory.size, memory.align);
-                        let ptr = self.memory.allocate(size, align, MemoryKind::Stack)?;
-                        let mplace = MemPlace { ptr: ptr.into(), align, meta };
+                        let ptr = self.memory.allocate(memory, MemoryKind::Stack)?;
+                        let mplace = MemPlace { ptr: ptr.into(), align: memory.align, meta };
                         if let LocalValue::Live(Operand::Immediate(value)) = local_val {
                             // Preserve old value.
                             // We don't have to validate as we can assume the local
@@ -934,7 +933,7 @@ where
                         // and actually overwrite things.
                         *M::access_local_mut(self, frame, local).unwrap().unwrap() =
                             LocalValue::Live(Operand::Indirect(mplace));
-                        (mplace, Some(size))
+                        (mplace, Some(memory.size))
                     }
                     Err(mplace) => (mplace, None), // this already was an indirect local
                 }
@@ -958,7 +957,7 @@ where
         layout: TyAndLayout<'tcx>,
         kind: MemoryKind<M::MemoryKind>,
     ) -> InterpResult<'static, MPlaceTy<'tcx, M::PointerTag>> {
-        let ptr = self.memory.allocate(layout.size, layout.align.abi, kind)?;
+        let ptr = self.memory.allocate(layout.memory_layout(), kind)?;
         Ok(MPlaceTy::from_aligned_ptr(ptr.into(), layout))
     }
 

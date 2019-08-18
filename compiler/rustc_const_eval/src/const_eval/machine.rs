@@ -12,7 +12,7 @@ use rustc_hir::def_id::DefId;
 use rustc_middle::mir::AssertMessage;
 use rustc_session::Limit;
 use rustc_span::symbol::{sym, Symbol};
-use rustc_target::abi::{Align, Size};
+use rustc_target::abi::{Align, MemoryLayout, Size};
 use rustc_target::spec::abi::Abi;
 
 use crate::interpret::{
@@ -329,10 +329,10 @@ impl<'mir, 'tcx> interpret::Machine<'mir, 'tcx> for CompileTimeInterpreter<'mir,
                     Ok(a) => a,
                     Err(err) => throw_ub_format!("align has to be a power of 2, {}", err),
                 };
+                let layout = MemoryLayout::new(Size::from_bytes(size as u64), align);
 
                 let ptr = ecx.memory.allocate(
-                    Size::from_bytes(size as u64),
-                    align,
+                    layout,
                     interpret::MemoryKind::Machine(MemoryKind::Heap),
                 )?;
                 ecx.write_pointer(ptr, dest)?;
