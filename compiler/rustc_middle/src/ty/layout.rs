@@ -283,12 +283,15 @@ fn invert_mapping(map: &[u32]) -> Vec<u32> {
 impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
     fn scalar_pair(&self, a: Scalar, b: Scalar) -> Layout {
         let dl = self.data_layout();
-        let b_align = b.value.align(dl);
-        let align = a.value.align(dl).max(b_align).max(dl.aggregate_align);
-        let b_offset = a.value.size(dl).align_to(b_align.abi);
-        let size = (b_offset + b.value.size(dl)).align_to(align.abi);
 
-        let memory_pref = MemoryLayoutPref::new(size, align);
+        let a_memory_pref = a.value.memory_pref(dl);
+        let b_memory_pref = b.value.memory_pref(dl);
+
+        let b_align = b_memory_pref.align;
+
+        let memory_pref = a_memory_pref.align_to(b_align).align_to(dl.aggregate_align);
+        let (memory_pref, b_offset) = memory_pref.extend(b_memory_pref);
+        let memory_pref = memory_pref.strided();
 
         // HACK(nox): We iter on `b` and then `a` because `max_by_key`
         // returns the last maximum.
