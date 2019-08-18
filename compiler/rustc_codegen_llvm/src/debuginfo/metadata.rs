@@ -386,7 +386,7 @@ fn fixed_vec_metadata(
 
     return_if_metadata_created_in_meantime!(cx, unique_type_id);
 
-    let (size, align) = cx.size_and_align_of(array_or_slice_type);
+    let memory = cx.memory_of(array_or_slice_type);
 
     let upper_bound = match array_or_slice_type.kind() {
         ty::Array(_, len) => len.eval_usize(cx.tcx, ty::ParamEnv::reveal_all()) as c_longlong,
@@ -400,8 +400,8 @@ fn fixed_vec_metadata(
     let metadata = unsafe {
         llvm::LLVMRustDIBuilderCreateArrayType(
             DIB(cx),
-            size.bits(),
-            align.bits() as u32,
+            memory.size.bits(),
+            memory.align.bits() as u32,
             element_type_metadata,
             subscripts,
         )
@@ -425,15 +425,16 @@ fn vec_slice_metadata(
 
     let slice_type_name = compute_debuginfo_type_name(cx.tcx, slice_ptr_type, true);
 
-    let (pointer_size, pointer_align) = cx.size_and_align_of(data_ptr_type);
-    let (usize_size, usize_align) = cx.size_and_align_of(cx.tcx.types.usize);
+    let pointer_memory = cx.memory_of(data_ptr_type);
+    let usize_memory = cx.memory_of(cx.tcx.types.usize);
+    let pointer_stride = pointer_memory.stride_to(usize_memory.align).size;
 
     let member_descriptions = vec![
         MemberDescription {
             name: "data_ptr".to_owned(),
             type_metadata: data_ptr_metadata,
             offset: Size::ZERO,
-            layout: MemoryLayout::new(pointer_size, pointer_align),
+            layout: pointer_memory,
             flags: DIFlags::FlagZero,
             discriminant: None,
             source_info: None,
@@ -441,8 +442,8 @@ fn vec_slice_metadata(
         MemberDescription {
             name: "length".to_owned(),
             type_metadata: type_metadata(cx, cx.tcx.types.usize, span),
-            offset: pointer_size,
-            layout: MemoryLayout::new(usize_size, usize_align),
+            offset: pointer_stride,
+            layout: usize_memory,
             flags: DIFlags::FlagZero,
             discriminant: None,
             source_info: None,
@@ -993,14 +994,14 @@ fn pointer_type_metadata(
     pointer_type: Ty<'tcx>,
     pointee_type_metadata: &'ll DIType,
 ) -> &'ll DIType {
-    let (pointer_size, pointer_align) = cx.size_and_align_of(pointer_type);
+    let pointer_memory = cx.memory_of(pointer_type);
     let name = compute_debuginfo_type_name(cx.tcx, pointer_type, false);
     unsafe {
         llvm::LLVMRustDIBuilderCreatePointerType(
             DIB(cx),
             pointee_type_metadata,
-            pointer_size.bits(),
-            pointer_align.bits() as u32,
+            pointer_memory.size.bits(),
+            pointer_memory.align.bits() as u32,
             0, // Ignore DWARF address space.
             name.as_ptr().cast(),
             name.len(),
@@ -1372,7 +1373,7 @@ impl<'tcx> TupleMemberDescriptionFactory<'tcx> {
             .iter()
             .enumerate()
             .map(|(i, &component_type)| {
-                let (size, align) = cx.size_and_align_of(component_type);
+                let memory = cx.memory_of(component_type);
                 let name = if let Some(names) = capture_names.as_mut() {
                     names.next().unwrap()
                 } else {
@@ -1382,7 +1383,7 @@ impl<'tcx> TupleMemberDescriptionFactory<'tcx> {
                     name,
                     type_metadata: type_metadata(cx, component_type, self.span),
                     offset: layout.fields.offset(i),
-                    layout: MemoryLayout::new(size, align),
+                    layout: memory,
                     flags: DIFlags::FlagZero,
                     discriminant: None,
                     source_info: None,
@@ -1630,12 +1631,12 @@ impl EnumMemberDescriptionFactory<'ll, 'tcx> {
                     let enum_layout = self.layout;
                     let offset = enum_layout.fields.offset(tag_field);
                     let discr_ty = enum_layout.field(cx, tag_field).ty;
-                    let (size, align) = cx.size_and_align_of(discr_ty);
+                    let memory = cx.memory_of(discr_ty);
                     Some(MemberDescription {
                         name: "discriminant".into(),
                         type_metadata: self.tag_type_metadata.unwrap(),
                         offset,
-                        layout: MemoryLayout::new(size, align),
+                        layout: memory,
                         flags: DIFlags::FlagZero,
                         discriminant: None,
                         source_info: None,
@@ -1797,8 +1798,8 @@ impl EnumMemberDescriptionFactory<'ll, 'tcx> {
                         Some(&self.common_members),
                     );
 
-                    let (size, align) =
-                        cx.size_and_align_of(dataful_variant_layout.field(cx, tag_field).ty);
+                    let dataful_variant_memory =
+                        cx.memory_of(dataful_variant_layout.field(cx, tag_field).ty);
 
                     vec![
                         MemberDescription {
@@ -1815,7 +1816,7 @@ impl EnumMemberDescriptionFactory<'ll, 'tcx> {
                             name: "discriminant".into(),
                             type_metadata: discr_enum,
                             offset: dataful_variant_layout.fields.offset(tag_field),
-                            layout: MemoryLayout::new(size, align),
+                            layout: dataful_variant_memory,
                             flags: DIFlags::FlagZero,
                             discriminant: None,
                             source_info: None,
@@ -1880,12 +1881,12 @@ impl VariantMemberDescriptionFactory<'tcx> {
             .iter()
             .enumerate()
             .map(|(i, &(ref name, ty))| {
-                let (size, align) = cx.size_and_align_of(ty);
+                let memory = cx.memory_of(ty);
                 MemberDescription {
                     name: name.to_string(),
                     type_metadata: type_metadata(cx, ty, self.span),
                     offset: self.offsets[i],
-                    layout: MemoryLayout::new(size, align),
+                    layout: memory,
                     flags: DIFlags::FlagZero,
                     discriminant: None,
                     source_info: None,
@@ -2204,7 +2205,7 @@ fn prepare_enum_metadata(
 
         Variants::Multiple { tag_encoding: TagEncoding::Direct, tag, tag_field, .. } => {
             let discr_type = tag.value.to_ty(cx.tcx);
-            let (size, align) = cx.size_and_align_of(discr_type);
+            let memory = cx.memory_of(discr_type);
 
             let discr_metadata = basic_type_metadata(cx, discr_type);
             unsafe {
@@ -2215,8 +2216,8 @@ fn prepare_enum_metadata(
                     discriminator_name.len(),
                     file_metadata,
                     UNKNOWN_LINE_NUMBER,
-                    size.bits(),
-                    align.bits() as u32,
+                    memory.size.bits(),
+                    memory.align.bits() as u32,
                     layout.fields.offset(tag_field).bits(),
                     DIFlags::FlagArtificial,
                     discr_metadata,
@@ -2449,7 +2450,7 @@ fn create_struct_stub(
     containing_scope: Option<&'ll DIScope>,
     flags: DIFlags,
 ) -> &'ll DICompositeType {
-    let (struct_size, struct_align) = cx.size_and_align_of(struct_type);
+    let struct_memory = cx.memory_of(struct_type);
 
     let type_map = debug_context(cx).type_map.borrow();
     let unique_type_id = type_map.get_unique_type_id_as_string(unique_type_id);
@@ -2467,8 +2468,8 @@ fn create_struct_stub(
             struct_type_name.len(),
             unknown_file_metadata(cx),
             UNKNOWN_LINE_NUMBER,
-            struct_size.bits(),
-            struct_align.bits() as u32,
+            struct_memory.size.bits(),
+            struct_memory.align.bits() as u32,
             flags,
             None,
             empty_array,
@@ -2489,7 +2490,7 @@ fn create_union_stub(
     unique_type_id: UniqueTypeId,
     containing_scope: &'ll DIScope,
 ) -> &'ll DICompositeType {
-    let (union_size, union_align) = cx.size_and_align_of(union_type);
+    let union_memory = cx.memory_of(union_type);
 
     let type_map = debug_context(cx).type_map.borrow();
     let unique_type_id = type_map.get_unique_type_id_as_string(unique_type_id);
@@ -2507,8 +2508,8 @@ fn create_union_stub(
             union_type_name.len(),
             unknown_file_metadata(cx),
             UNKNOWN_LINE_NUMBER,
-            union_size.bits(),
-            union_align.bits() as u32,
+            union_memory.size.bits(),
+            union_memory.align.bits() as u32,
             DIFlags::FlagZero,
             Some(empty_array),
             0, // RuntimeLang

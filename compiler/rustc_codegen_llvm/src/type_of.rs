@@ -6,7 +6,7 @@ use rustc_middle::bug;
 use rustc_middle::ty::layout::{FnAbiOf, LayoutOf, TyAndLayout};
 use rustc_middle::ty::print::{with_no_trimmed_paths, with_no_visible_paths};
 use rustc_middle::ty::{self, Ty, TypeFoldable};
-use rustc_target::abi::{Abi, AddressSpace, Align, FieldsShape};
+use rustc_target::abi::{Abi, AddressSpace, Align, FieldsShape, MemoryLayout};
 use rustc_target::abi::{Int, Pointer, F32, F64};
 use rustc_target::abi::{PointeeInfo, Scalar, Size, TyAbiInterface, Variants};
 use smallvec::{smallvec, SmallVec};
@@ -163,9 +163,8 @@ impl<'a, 'tcx> CodegenCx<'a, 'tcx> {
         self.layout_of(ty).size
     }
 
-    pub fn size_and_align_of(&self, ty: Ty<'tcx>) -> (Size, Align) {
-        let layout = self.layout_of(ty);
-        (layout.size, layout.align.abi)
+    pub fn memory_of(&self, ty: Ty<'tcx>) -> MemoryLayout {
+        self.layout_of(ty).memory_layout()
     }
 }
 

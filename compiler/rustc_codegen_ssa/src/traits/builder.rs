@@ -16,7 +16,7 @@ use crate::MemFlags;
 use rustc_middle::ty::layout::{HasParamEnv, TyAndLayout};
 use rustc_middle::ty::Ty;
 use rustc_span::Span;
-use rustc_target::abi::{Abi, Align, Scalar, Size, WrappingRange};
+use rustc_target::abi::{Abi, Align, MemoryLayout, Scalar, Size, WrappingRange};
 use rustc_target::spec::HasTargetSpec;
 
 #[derive(Copy, Clone)]
@@ -204,6 +204,10 @@ pub trait BuilderMethods<'a, 'tcx>:
 
     fn icmp(&mut self, op: IntPredicate, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
     fn fcmp(&mut self, op: RealPredicate, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
+
+    fn memory_of(&self, ty: Ty<'tcx>) -> MemoryLayout {
+        self.layout_of(ty).memory_layout()
+    }
 
     fn memcpy(
         &mut self,

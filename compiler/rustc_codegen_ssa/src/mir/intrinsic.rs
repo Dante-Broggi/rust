@@ -19,15 +19,13 @@ fn copy_intrinsic<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
     src: Bx::Value,
     count: Bx::Value,
 ) {
-    let layout = bx.layout_of(ty);
-    let size = layout.size;
-    let align = layout.align.abi;
-    let size = bx.mul(bx.const_usize(size.bytes()), count);
+    let memory = bx.memory_of(ty);
+    let size = bx.mul(bx.const_usize(memory.size.bytes()), count);
     let flags = if volatile { MemFlags::VOLATILE } else { MemFlags::empty() };
     if allow_overlap {
-        bx.memmove(dst, align, src, align, size, flags);
+        bx.memmove(dst, memory.align, src, memory.align, size, flags);
     } else {
-        bx.memcpy(dst, align, src, align, size, flags);
+        bx.memcpy(dst, memory.align, src, memory.align, size, flags);
     }
 }
 
@@ -39,12 +37,10 @@ fn memset_intrinsic<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
     val: Bx::Value,
     count: Bx::Value,
 ) {
-    let layout = bx.layout_of(ty);
-    let size = layout.size;
-    let align = layout.align.abi;
-    let size = bx.mul(bx.const_usize(size.bytes()), count);
+    let memory = bx.memory_of(ty);
+    let size = bx.mul(bx.const_usize(memory.size.bytes()), count);
     let flags = if volatile { MemFlags::VOLATILE } else { MemFlags::empty() };
-    bx.memset(dst, val, size, align, flags);
+    bx.memset(dst, val, size, memory.align, flags);
 }
 
 impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
