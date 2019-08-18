@@ -656,10 +656,10 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
                 let elem = layout.field(self, 0);
 
                 // Make sure the slice is not too big.
-                let size = elem.size.checked_mul(len, self).ok_or_else(|| {
+                let memory_pref = elem.memory_pref.checked_mul(len, self).ok_or_else(|| {
                     err_ub!(InvalidMeta("slice is bigger than largest supported object"))
                 })?;
-                Ok(Some((size, elem.align.abi)))
+                Ok(Some((memory_pref.size, memory_pref.align.abi)))
             }
 
             ty::Foreign(_) => Ok(None),

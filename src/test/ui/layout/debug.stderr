@@ -32,14 +32,16 @@ error: layout_of(E) = Layout {
                     sized: true,
                 },
                 largest_niche: None,
-                align: AbiAndPrefAlign {
-                    abi: Align {
-                        pow2: 0,
+                memory_pref: MemoryLayoutPref {
+                    size: Size {
+                        raw: 4,
                     },
-                    pref: $PREF_ALIGN,
-                },
-                size: Size {
-                    raw: 4,
+                    align: AbiAndPrefAlign {
+                        abi: Align {
+                            pow2: 0,
+                        },
+                        pref: $PREF_ALIGN,
+                    },
                 },
             },
             Layout {
@@ -66,14 +68,16 @@ error: layout_of(E) = Layout {
                 },
                 abi: Uninhabited,
                 largest_niche: None,
-                align: AbiAndPrefAlign {
-                    abi: Align {
-                        pow2: 2,
+                memory_pref: MemoryLayoutPref {
+                    size: Size {
+                        raw: 12,
                     },
-                    pref: $PREF_ALIGN,
-                },
-                size: Size {
-                    raw: 12,
+                    align: AbiAndPrefAlign {
+                        abi: Align {
+                            pow2: 2,
+                        },
+                        pref: $PREF_ALIGN,
+                    },
                 },
             },
         ],
@@ -95,14 +99,16 @@ error: layout_of(E) = Layout {
             },
         },
     ),
-    align: AbiAndPrefAlign {
-        abi: Align {
-            pow2: 2,
+    memory_pref: MemoryLayoutPref {
+        size: Size {
+            raw: 12,
         },
-        pref: $PREF_ALIGN,
-    },
-    size: Size {
-        raw: 12,
+        align: AbiAndPrefAlign {
+            abi: Align {
+                pow2: 2,
+            },
+            pref: $PREF_ALIGN,
+        },
     },
 }
   --> $DIR/debug.rs:6:1
@@ -149,14 +155,16 @@ error: layout_of(S) = Layout {
         },
     ),
     largest_niche: None,
-    align: AbiAndPrefAlign {
-        abi: Align {
-            pow2: 2,
+    memory_pref: MemoryLayoutPref {
+        size: Size {
+            raw: 8,
         },
-        pref: $PREF_ALIGN,
-    },
-    size: Size {
-        raw: 8,
+        align: AbiAndPrefAlign {
+            abi: Align {
+                pow2: 2,
+            },
+            pref: $PREF_ALIGN,
+        },
     },
 }
   --> $DIR/debug.rs:9:1
@@ -175,14 +183,16 @@ error: layout_of(U) = Layout {
         sized: true,
     },
     largest_niche: None,
-    align: AbiAndPrefAlign {
-        abi: Align {
-            pow2: 2,
+    memory_pref: MemoryLayoutPref {
+        size: Size {
+            raw: 8,
         },
-        pref: $PREF_ALIGN,
-    },
-    size: Size {
-        raw: 8,
+        align: AbiAndPrefAlign {
+            abi: Align {
+                pow2: 2,
+            },
+            pref: $PREF_ALIGN,
+        },
     },
 }
   --> $DIR/debug.rs:12:1
@@ -230,14 +240,16 @@ error: layout_of(std::result::Result<i32, i32>) = Layout {
                     sized: true,
                 },
                 largest_niche: None,
-                align: AbiAndPrefAlign {
-                    abi: Align {
-                        pow2: 2,
+                memory_pref: MemoryLayoutPref {
+                    size: Size {
+                        raw: 8,
                     },
-                    pref: $PREF_ALIGN,
-                },
-                size: Size {
-                    raw: 8,
+                    align: AbiAndPrefAlign {
+                        abi: Align {
+                            pow2: 2,
+                        },
+                        pref: $PREF_ALIGN,
+                    },
                 },
             },
             Layout {
@@ -258,14 +270,16 @@ error: layout_of(std::result::Result<i32, i32>) = Layout {
                     sized: true,
                 },
                 largest_niche: None,
-                align: AbiAndPrefAlign {
-                    abi: Align {
-                        pow2: 2,
+                memory_pref: MemoryLayoutPref {
+                    size: Size {
+                        raw: 8,
                     },
-                    pref: $PREF_ALIGN,
-                },
-                size: Size {
-                    raw: 8,
+                    align: AbiAndPrefAlign {
+                        abi: Align {
+                            pow2: 2,
+                        },
+                        pref: $PREF_ALIGN,
+                    },
                 },
             },
         ],
@@ -300,14 +314,16 @@ error: layout_of(std::result::Result<i32, i32>) = Layout {
             },
         },
     ),
-    align: AbiAndPrefAlign {
-        abi: Align {
-            pow2: 2,
+    memory_pref: MemoryLayoutPref {
+        size: Size {
+            raw: 8,
         },
-        pref: $PREF_ALIGN,
-    },
-    size: Size {
-        raw: 8,
+        align: AbiAndPrefAlign {
+            abi: Align {
+                pow2: 2,
+            },
+            pref: $PREF_ALIGN,
+        },
     },
 }
   --> $DIR/debug.rs:15:1
@@ -330,14 +346,16 @@ error: layout_of(i32) = Layout {
         },
     ),
     largest_niche: None,
-    align: AbiAndPrefAlign {
-        abi: Align {
-            pow2: 2,
+    memory_pref: MemoryLayoutPref {
+        size: Size {
+            raw: 4,
         },
-        pref: $PREF_ALIGN,
-    },
-    size: Size {
-        raw: 4,
+        align: AbiAndPrefAlign {
+            abi: Align {
+                pow2: 2,
+            },
+            pref: $PREF_ALIGN,
+        },
     },
 }
   --> $DIR/debug.rs:18:1

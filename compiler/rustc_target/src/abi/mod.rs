@@ -7,7 +7,7 @@ use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::iter::Step;
 use std::num::NonZeroUsize;
-use std::ops::{Add, AddAssign, Deref, Mul, RangeInclusive, Sub};
+use std::ops::{Add, AddAssign, Deref, DerefMut, Mul, RangeInclusive, Sub};
 use std::str::FromStr;
 
 use rustc_index::vec::{Idx, IndexVec};
@@ -593,7 +593,8 @@ impl AbiAndPrefAlign {
 
 /// An aligned size preference.
 /// Better name appreciated.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Encodable, Decodable)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Encodable, Decodable, HashStable_Generic)]
 pub struct MemoryLayoutPref {
     /// The minimum size in bytes for a memory block of this layout.
     /// NOTE: *not* rounded up to alignment.
@@ -1332,8 +1333,7 @@ pub struct Layout {
     /// (i.e. outside of its `valid_range`), if it exists.
     pub largest_niche: Option<Niche>,
 
-    pub align: AbiAndPrefAlign,
-    pub size: Size,
+    pub memory_pref: MemoryLayoutPref,
 }
 
 impl Layout {
@@ -1341,14 +1341,27 @@ impl Layout {
         let largest_niche = Niche::from_scalar(cx, Size::ZERO, scalar);
         let size = scalar.value.size(cx);
         let align = scalar.value.align(cx);
+        let memory_pref = MemoryLayoutPref::new(size, align);
         Layout {
             variants: Variants::Single { index: VariantIdx::new(0) },
             fields: FieldsShape::Primitive,
             abi: Abi::Scalar(scalar),
             largest_niche,
-            size,
-            align,
+            memory_pref,
         }
+    }
+}
+
+impl Deref for Layout {
+    type Target = MemoryLayoutPref;
+    fn deref(&self) -> &MemoryLayoutPref {
+        &self.memory_pref
+    }
+}
+
+impl DerefMut for Layout {
+    fn deref_mut(&mut self) -> &mut MemoryLayoutPref {
+        &mut self.memory_pref
     }
 }
 

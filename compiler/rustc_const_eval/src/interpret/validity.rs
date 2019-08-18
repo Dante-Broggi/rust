@@ -829,10 +829,10 @@ impl<'rt, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> ValueVisitor<'mir, 'tcx, M>
                 let mplace = op.assert_mem_place();
                 // This is the length of the array/slice.
                 let len = mplace.len(self.ecx)?;
-                // This is the element type size.
-                let layout = self.ecx.layout_of(tys)?;
+                // This is the element type memory layout.
+                let ty_memory = self.ecx.layout_of(tys)?.memory_pref;
                 // This is the size in bytes of the whole array. (This checks for overflow.)
-                let size = layout.size * len;
+                let memory_pref = ty_memory * len;
 
                 // Optimization: we just check the entire range at once.
                 // NOTE: Keep this in sync with the handling of integer and float
@@ -844,7 +844,7 @@ impl<'rt, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> ValueVisitor<'mir, 'tcx, M>
                 // to reject those pointers, we just do not have the machinery to
                 // talk about parts of a pointer.
                 // We also accept uninit, for consistency with the slow path.
-                let alloc = match self.ecx.memory.get(mplace.ptr, size, mplace.align)? {
+                let alloc = match self.ecx.memory.get(mplace.ptr, memory_pref.size, mplace.align)? {
                     Some(a) => a,
                     None => {
                         // Size 0, nothing more to check.
@@ -854,7 +854,7 @@ impl<'rt, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> ValueVisitor<'mir, 'tcx, M>
 
                 let allow_uninit_and_ptr = !M::enforce_number_validity(self.ecx);
                 match alloc.check_bytes(
-                    alloc_range(Size::ZERO, size),
+                    alloc_range(Size::ZERO, memory_pref.size),
                     allow_uninit_and_ptr,
                 ) {
                     // In the happy case, we needn't check anything else.
@@ -869,7 +869,7 @@ impl<'rt, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> ValueVisitor<'mir, 'tcx, M>
                                 // element that byte belongs to so we can
                                 // provide an index.
                                 let i = usize::try_from(
-                                    access.uninit_offset.bytes() / layout.size.bytes(),
+                                    access.uninit_offset.bytes() / ty_memory.size.bytes(),
                                 )
                                 .unwrap();
                                 self.path.push(PathElem::ArrayElem(i));

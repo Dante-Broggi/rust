@@ -288,6 +288,8 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
         let b_offset = a.value.size(dl).align_to(b_align.abi);
         let size = (b_offset + b.value.size(dl)).align_to(align.abi);
 
+        let memory_pref = MemoryLayoutPref::new(size, align);
+
         // HACK(nox): We iter on `b` and then `a` because `max_by_key`
         // returns the last maximum.
         let largest_niche = Niche::from_scalar(dl, b_offset, b)
@@ -303,8 +305,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
             },
             abi: Abi::ScalarPair(a, b),
             largest_niche,
-            align,
-            size,
+            memory_pref,
         }
     }
 
@@ -516,13 +517,14 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
             abi = Abi::Uninhabited;
         }
 
+        let memory_pref = MemoryLayoutPref::new(size, align);
+
         Ok(Layout {
             variants: Variants::Single { index: VariantIdx::new(0) },
             fields: FieldsShape::Arbitrary { offsets, memory_index },
             abi,
             largest_niche,
-            align,
-            size,
+            memory_pref,
         })
     }
 
@@ -573,8 +575,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                 fields: FieldsShape::Primitive,
                 abi: Abi::Uninhabited,
                 largest_niche: None,
-                align: dl.i8_align,
-                size: Size::ZERO,
+                memory_pref: MemoryLayoutPref::new(Size::ZERO, dl.i8_align),
             }),
 
             // Potentially-wide pointers.
@@ -618,8 +619,10 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
 
                 let count = count.try_eval_usize(tcx, param_env).ok_or(LayoutError::Unknown(ty))?;
                 let element = self.layout_of(element)?;
-                let size =
-                    element.size.checked_mul(count, dl).ok_or(LayoutError::SizeOverflow(ty))?;
+                let memory_pref = element
+                    .memory_pref
+                    .checked_mul(count, dl)
+                    .ok_or(LayoutError::SizeOverflow(ty))?;
 
                 let abi =
                     if count != 0 && tcx.conservative_is_privately_uninhabited(param_env.and(ty)) {
@@ -632,22 +635,21 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
 
                 tcx.intern_layout(Layout {
                     variants: Variants::Single { index: VariantIdx::new(0) },
-                    fields: FieldsShape::Array { stride: element.size, count },
+                    fields: FieldsShape::Array { stride: element.stride(), count },
                     abi,
                     largest_niche,
-                    align: element.align,
-                    size,
+                    memory_pref,
                 })
             }
             ty::Slice(element) => {
                 let element = self.layout_of(element)?;
+                let memory_pref = MemoryLayoutPref::new(Size::ZERO, element.align);
                 tcx.intern_layout(Layout {
                     variants: Variants::Single { index: VariantIdx::new(0) },
-                    fields: FieldsShape::Array { stride: element.size, count: 0 },
+                    fields: FieldsShape::Array { stride: element.stride(), count: 0 },
                     abi: Abi::Aggregate { sized: false },
                     largest_niche: None,
-                    align: element.align,
-                    size: Size::ZERO,
+                    memory_pref,
                 })
             }
             ty::Str => tcx.intern_layout(Layout {
@@ -655,8 +657,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                 fields: FieldsShape::Array { stride: Size::from_bytes(1), count: 0 },
                 abi: Abi::Aggregate { sized: false },
                 largest_niche: None,
-                align: dl.i8_align,
-                size: Size::ZERO,
+                memory_pref: MemoryLayoutPref::new(Size::ZERO, dl.i8_align),
             }),
 
             // Odd unit types.
@@ -795,15 +796,17 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                 };
 
                 // Compute the size and alignment of the vector:
-                let size = e_ly.size.checked_mul(e_len, dl).ok_or(LayoutError::SizeOverflow(ty))?;
-                let align = dl.vector_align(size);
-                let size = size.align_to(align.abi);
+                let vec_pos =
+                    e_ly.memory_pref.checked_mul(e_len, dl).ok_or(LayoutError::SizeOverflow(ty))?;
+                let align = dl.vector_align(vec_pos.size);
+                let size = vec_pos.stride_to(align.abi).size;
+                let memory_pref = MemoryLayoutPref::new(size, align);
 
                 // Compute the placement of the vector fields:
                 let fields = if is_array {
                     FieldsShape::Arbitrary { offsets: vec![Size::ZERO], memory_index: vec![0] }
                 } else {
-                    FieldsShape::Array { stride: e_ly.size, count: e_len }
+                    FieldsShape::Array { stride: e_ly.stride(), count: e_len }
                 };
 
                 tcx.intern_layout(Layout {
@@ -811,8 +814,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                     fields,
                     abi: Abi::Vector { element: e_abi, count: e_len },
                     largest_niche: e_ly.largest_niche,
-                    size,
-                    align,
+                    memory_pref,
                 })
             }
 
@@ -886,6 +888,8 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                         align = align.min(AbiAndPrefAlign::new(pack));
                     }
 
+                    let memory_pref = MemoryLayoutPref::new(size, align).strided();
+
                     return Ok(tcx.intern_layout(Layout {
                         variants: Variants::Single { index },
                         fields: FieldsShape::Union(
@@ -894,8 +898,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                         ),
                         abi,
                         largest_niche: None,
-                        align,
-                        size: size.align_to(align.abi),
+                        memory_pref,
                     }));
                 }
 
@@ -1087,6 +1090,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
 
                             let offset = st[i].fields.offset(field_index) + niche.offset;
                             let size = st[i].size;
+                            let memory_pref = MemoryLayoutPref::new(size, align);
 
                             let abi = if st.iter().all(|v| v.abi.is_uninhabited()) {
                                 Abi::Uninhabited
@@ -1128,8 +1132,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                                 },
                                 abi,
                                 largest_niche,
-                                size,
-                                align,
+                                memory_pref,
                             });
                         }
                     }
@@ -1162,8 +1165,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                 assert!(min <= max, "discriminant range is {}...{}", min, max);
                 let (min_ity, signed) = Integer::repr_discr(tcx, ty, &def.repr, min, max);
 
-                let mut align = dl.aggregate_align;
-                let mut size = Size::ZERO;
+                let mut memory_pref = MemoryLayoutPref::new(Size::ZERO, dl.aggregate_align);
 
                 // We're interested in the smallest alignment, so start large.
                 let mut start_align = Align::from_bytes(256).unwrap();
@@ -1204,16 +1206,15 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                                 break;
                             }
                         }
-                        size = cmp::max(size, st.size);
-                        align = align.max(st.align);
+                        memory_pref = memory_pref.max(st.memory_pref);
                         Ok(st)
                     })
                     .collect::<Result<IndexVec<VariantIdx, _>, _>>()?;
 
                 // Align the maximum variant size to the largest alignment.
-                size = size.align_to(align.abi);
+                memory_pref = memory_pref.strided();
 
-                if size.bytes() >= dl.obj_size_bound() {
+                if memory_pref.size.bytes() >= dl.obj_size_bound() {
                     return Err(LayoutError::SizeOverflow(ty));
                 }
 
@@ -1289,7 +1290,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                     },
                 };
                 let mut abi = Abi::Aggregate { sized: true };
-                if tag.value.size(dl) == size {
+                if tag.value.size(dl) == memory_pref.size {
                     abi = Abi::Scalar(tag);
                 } else {
                     // Try to use a ScalarPair for all tagged enums.
@@ -1340,8 +1341,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                         };
                         if pair_offsets[0] == Size::ZERO
                             && pair_offsets[1] == *offset
-                            && align == pair.align
-                            && size == pair.size
+                            && memory_pref == pair.memory_pref
                         {
                             // We can use `ScalarPair` only when it matches our
                             // already computed layout (including `#[repr(C)]`).
@@ -1369,8 +1369,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                     },
                     largest_niche,
                     abi,
-                    align,
-                    size,
+                    memory_pref,
                 };
 
                 let best_layout = match (tagged_layout, niche_filling_layout) {
@@ -1588,7 +1587,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
             StructKind::AlwaysSized,
         )?;
 
-        let (prefix_size, prefix_align) = (prefix.size, prefix.align);
+        let prefix_memory = prefix.memory_pref;
 
         // Split the prefix layout into the "outer" fields (upvars and
         // discriminant) and the "promoted" fields. Promoted fields will
@@ -1625,8 +1624,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
             _ => bug!(),
         };
 
-        let mut size = prefix.size;
-        let mut align = prefix.align;
+        let mut memory_pref = prefix_memory;
         let variants = info
             .variant_fields
             .iter_enumerated()
@@ -1648,7 +1646,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                         .map(|ty| self.layout_of(ty))
                         .collect::<Result<Vec<_>, _>>()?,
                     &ReprOptions::default(),
-                    StructKind::Prefixed(prefix_size, prefix_align.abi),
+                    StructKind::Prefixed(prefix_memory.size, prefix_memory.align.abi),
                 )?;
                 variant.variants = Variants::Single { index };
 
@@ -1701,13 +1699,13 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                     memory_index: combined_memory_index,
                 };
 
-                size = size.max(variant.size);
-                align = align.max(variant.align);
+                memory_pref = memory_pref.max(variant.memory_pref);
                 Ok(variant)
             })
             .collect::<Result<IndexVec<VariantIdx, _>, _>>()?;
 
-        size = size.align_to(align.abi);
+        // Align the size to the alignment.
+        memory_pref = memory_pref.strided();
 
         let abi = if prefix.abi.is_uninhabited() || variants.iter().all(|v| v.abi.is_uninhabited())
         {
@@ -1726,8 +1724,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
             fields: outer_fields,
             abi,
             largest_niche: prefix.largest_niche,
-            size,
-            align,
+            memory_pref,
         });
         debug!("generator layout ({:?}): {:#?}", ty, layout);
         Ok(layout)
@@ -2242,8 +2239,7 @@ where
                     },
                     abi: Abi::Uninhabited,
                     largest_niche: None,
-                    align: tcx.data_layout.i8_align,
-                    size: Size::ZERO,
+                    memory_pref: MemoryLayoutPref::new(Size::ZERO, tcx.data_layout.i8_align),
                 })
             }
 
