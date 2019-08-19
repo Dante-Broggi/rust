@@ -1,7 +1,7 @@
 use super::{AllocId, InterpResult};
 
 use rustc_macros::HashStable;
-use rustc_target::abi::{HasDataLayout, Size};
+use rustc_target::abi::{HasDataLayout, MemoryLayoutPref, Size};
 
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
@@ -14,8 +14,13 @@ pub trait PointerArithmetic: HasDataLayout {
     // These are not supposed to be overridden.
 
     #[inline(always)]
+    fn pointer(&self) -> MemoryLayoutPref {
+        self.data_layout().pointer
+    }
+
+    #[inline(always)]
     fn pointer_size(&self) -> Size {
-        self.data_layout().pointer.size
+        self.pointer().size
     }
 
     #[inline]

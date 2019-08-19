@@ -45,11 +45,11 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
         vtable: Pointer<Option<M::PointerTag>>,
         idx: u64,
     ) -> InterpResult<'tcx, FnVal<'tcx, M::ExtraFnVal>> {
-        let ptr_size = self.pointer_size();
-        let vtable_slot = vtable.offset(ptr_size * idx, self)?;
+        let ptr_mem = self.pointer();
+        let vtable_slot = vtable.offset((ptr_mem * idx).size, self)?;
         let vtable_slot = self
             .memory
-            .get(vtable_slot, ptr_size, self.tcx.data_layout.pointer.align.abi)?
+            .get(vtable_slot, ptr_mem.size, ptr_mem.align.abi)?
             .expect("cannot be a ZST");
         let fn_ptr = self.scalar_to_ptr(vtable_slot.read_ptr_sized(Size::ZERO)?.check_init()?);
         self.memory.get_fn(fn_ptr)
@@ -95,23 +95,23 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
         &self,
         vtable: Pointer<Option<M::PointerTag>>,
     ) -> InterpResult<'tcx, (Size, Align)> {
-        let pointer_size = self.pointer_size();
+        let ptr_mem = self.pointer();
         // We check for `size = 3 * ptr_size`, which covers the drop fn (unused here),
         // the size, and the align (which we read below).
         let vtable = self
             .memory
             .get(
                 vtable,
-                pointer_size * u64::try_from(COMMON_VTABLE_ENTRIES.len()).unwrap(),
+                (ptr_mem * u64::try_from(COMMON_VTABLE_ENTRIES.len()).unwrap()).size,
                 self.tcx.data_layout.pointer.align.abi,
             )?
             .expect("cannot be a ZST");
         let size = vtable
-            .read_ptr_sized(pointer_size * u64::try_from(COMMON_VTABLE_ENTRIES_SIZE).unwrap())?
+            .read_ptr_sized((ptr_mem * u64::try_from(COMMON_VTABLE_ENTRIES_SIZE).unwrap()).size)?
             .check_init()?;
         let size = size.to_machine_usize(self)?;
         let align = vtable
-            .read_ptr_sized(pointer_size * u64::try_from(COMMON_VTABLE_ENTRIES_ALIGN).unwrap())?
+            .read_ptr_sized((ptr_mem * u64::try_from(COMMON_VTABLE_ENTRIES_ALIGN).unwrap()).size)?
             .check_init()?;
         let align = align.to_machine_usize(self)?;
         let align = Align::from_bytes(align).map_err(|e| err_ub!(InvalidVtableAlignment(e)))?;
