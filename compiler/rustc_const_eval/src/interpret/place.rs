@@ -333,12 +333,11 @@ where
         mplace: MPlaceTy<'tcx, M::PointerTag>,
         msg: CheckInAllocMsg,
     ) -> InterpResult<'tcx> {
-        let (size, align) = self
-            .size_and_align_of_mplace(&mplace)?
-            .unwrap_or((mplace.layout.size, mplace.layout.align.abi));
-        assert!(mplace.mplace.align <= align, "dynamic alignment less strict than static one?");
-        let align = M::enforce_alignment(&self.memory.extra).then_some(align);
-        self.memory.check_ptr_access_align(mplace.ptr, size, align.unwrap_or(Align::ONE), msg)?;
+        let memory = self.memory_of_mplace(&mplace)?
+            .unwrap_or(mplace.layout.memory_layout());
+        assert!(mplace.mplace.align <= memory.align, "dynamic alignment less strict than static one?");
+        let align = M::enforce_alignment(&self.memory.extra).then_some(memory.align);
+        self.memory.check_ptr_access_align(mplace.ptr, memory.size, align.unwrap_or(Align::ONE), msg)?;
         Ok(())
     }
 
@@ -362,8 +361,8 @@ where
             // Re-use parent metadata to determine dynamic field layout.
             // With custom DSTS, this *will* execute user-defined code, but the same
             // happens at run-time so that's okay.
-            let align = match self.size_and_align_of(&base.meta, &field_layout)? {
-                Some((_, align)) => align,
+            let align = match self.memory_of(&base.meta, &field_layout)? {
+                Some(memory) => memory.align,
                 None if offset == Size::ZERO => {
                     // An extern type at offset 0, we fall back to its static alignment.
                     // FIXME: Once we have made decisions for how to handle size and alignment
@@ -918,9 +917,10 @@ where
                         let local_layout =
                             self.layout_of_local(&self.stack()[frame], local, None)?;
                         // We also need to support unsized types, and hence cannot use `allocate`.
-                        let (size, align) = self
-                            .size_and_align_of(&meta, &local_layout)?
+                        let memory = self
+                            .memory_of(&meta, &local_layout)?
                             .expect("Cannot allocate for non-dyn-sized type");
+                        let (size, align) = (memory.size, memory.align);
                         let ptr = self.memory.allocate(size, align, MemoryKind::Stack)?;
                         let mplace = MemPlace { ptr: ptr.into(), align, meta };
                         if let LocalValue::Live(Operand::Immediate(value)) = local_val {

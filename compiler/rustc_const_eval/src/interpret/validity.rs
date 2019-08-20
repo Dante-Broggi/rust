@@ -390,22 +390,22 @@ impl<'rt, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> ValidityVisitor<'rt, 'mir, '
             self.check_wide_ptr_meta(place.meta, place.layout)?;
         }
         // Make sure this is dereferenceable and all.
-        let size_and_align = try_validation!(
-            self.ecx.size_and_align_of_mplace(&place),
+        let memory_layout = try_validation!(
+            self.ecx.memory_of_mplace(&place),
             self.path,
             err_ub!(InvalidMeta(msg)) => { "invalid {} metadata: {}", kind, msg },
         );
-        let (size, align) = size_and_align
+        let memory_layout = memory_layout
             // for the purpose of validity, consider foreign types to have
-            // alignment and size determined by the layout (size will be 0,
+            // the place's memory layout (size will be 0,
             // alignment should take attributes into account).
-            .unwrap_or_else(|| (place.layout.size, place.layout.align.abi));
+            .unwrap_or_else(|| place.layout.memory_layout());
         // Direct call to `check_ptr_access_align` checks alignment even on CTFE machines.
         try_validation!(
             self.ecx.memory.check_ptr_access_align(
                 place.ptr,
-                size,
-                align,
+                memory_layout.size,
+                memory_layout.align,
                 CheckInAllocMsg::InboundsTest, // will anyway be replaced by validity message
             ),
             self.path,

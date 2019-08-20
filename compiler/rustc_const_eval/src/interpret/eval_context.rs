@@ -15,7 +15,7 @@ use rustc_mir_dataflow::storage::AlwaysLiveLocals;
 use rustc_query_system::ich::StableHashingContext;
 use rustc_session::Limit;
 use rustc_span::{Pos, Span};
-use rustc_target::abi::{Align, HasDataLayout, Size, TargetDataLayout};
+use rustc_target::abi::{HasDataLayout, MemoryLayout, Size, TargetDataLayout};
 
 use super::{
     AllocId, GlobalId, Immediate, InterpErrorInfo, InterpResult, MPlaceTy, Machine, MemPlace,
@@ -570,13 +570,13 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
     /// Returns the actual dynamic size and alignment of the place at the given type.
     /// Only the "meta" (metadata) part of the place matters.
     /// This can fail to provide an answer for extern types.
-    pub(super) fn size_and_align_of(
+    pub(super) fn memory_of(
         &self,
         metadata: &MemPlaceMeta<M::PointerTag>,
         layout: &TyAndLayout<'tcx>,
-    ) -> InterpResult<'tcx, Option<(Size, Align)>> {
+    ) -> InterpResult<'tcx, Option<MemoryLayout>> {
         if !layout.is_unsized() {
-            return Ok(Some((layout.size, layout.align.abi)));
+            return Ok(Some(layout.memory_layout()));
         }
         match layout.ty.kind() {
             ty::Adt(..) | ty::Tuple(..) => {
@@ -601,25 +601,27 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
                 // the last field).  Can't have foreign types here, how would we
                 // adjust alignment and size for them?
                 let field = layout.field(self, layout.fields.count() - 1);
-                let (unsized_size, unsized_align) =
-                    match self.size_and_align_of(metadata, &field)? {
-                        Some(size_and_align) => size_and_align,
-                        None => {
-                            // A field with extern type.  If this field is at offset 0, we behave
-                            // like the underlying extern type.
-                            // FIXME: Once we have made decisions for how to handle size and alignment
-                            // of `extern type`, this should be adapted.  It is just a temporary hack
-                            // to get some code to work that probably ought to work.
-                            if sized_size == Size::ZERO {
-                                return Ok(None);
-                            } else {
-                                span_bug!(
-                                    self.cur_span(),
-                                    "Fields cannot be extern types, unless they are at offset 0"
-                                )
-                            }
+                let unsized_memory = match self.memory_of(metadata, &field)? {
+                    Some(size_and_align) => size_and_align,
+                    None => {
+                        // A field with extern type.  If this field is at offset 0, we behave
+                        // like the underlying extern type.
+                        // FIXME: Once we have made decisions for how to handle size and alignment
+                        // of `extern type`, this should be adapted.  It is just a temporary hack
+                        // to get some code to work that probably ought to work.
+                        if sized_size == Size::ZERO {
+                            return Ok(None);
+                        } else {
+                            span_bug!(
+                                self.cur_span(),
+                                "Fields cannot be extern types, unless they are at offset 0"
+                            )
                         }
-                    };
+                    }
+                };
+
+                let unsized_size = unsized_memory.size;
+                let unsized_align = unsized_memory.align;
 
                 // FIXME (#26403, #27023): We should be adding padding
                 // to `sized_size` (to accommodate the `unsized_align`
@@ -643,12 +645,16 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
                 if size.bytes() >= self.tcx.data_layout.obj_size_bound() {
                     throw_ub!(InvalidMeta("total size is bigger than largest supported object"));
                 }
-                Ok(Some((size, align)))
+                let memory = MemoryLayout::new(size, align).strided();
+
+                Ok(Some(memory))
             }
             ty::Dynamic(..) => {
                 let vtable = self.scalar_to_ptr(metadata.unwrap_meta());
                 // Read size and align from vtable (already checks size).
-                Ok(Some(self.read_size_and_align_from_vtable(vtable)?))
+                let (size, align) = self.read_size_and_align_from_vtable(vtable)?;
+                let layout = MemoryLayout::new(size, align);
+                Ok(Some(layout))
             }
 
             ty::Slice(_) | ty::Str => {
@@ -659,20 +665,20 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
                 let memory_pref = elem.memory_pref.checked_mul(len, self).ok_or_else(|| {
                     err_ub!(InvalidMeta("slice is bigger than largest supported object"))
                 })?;
-                Ok(Some((memory_pref.size, memory_pref.align.abi)))
+                Ok(Some(memory_pref.memory_layout()))
             }
 
             ty::Foreign(_) => Ok(None),
 
-            _ => span_bug!(self.cur_span(), "size_and_align_of::<{:?}> not supported", layout.ty),
+            _ => span_bug!(self.cur_span(), "memory_of::<{:?}> not supported", layout.ty),
         }
     }
     #[inline]
-    pub fn size_and_align_of_mplace(
+    pub fn memory_of_mplace(
         &self,
         mplace: &MPlaceTy<'tcx, M::PointerTag>,
-    ) -> InterpResult<'tcx, Option<(Size, Align)>> {
-        self.size_and_align_of(&mplace.meta, &mplace.layout)
+    ) -> InterpResult<'tcx, Option<MemoryLayout>> {
+        self.memory_of(&mplace.meta, &mplace.layout)
     }
 
     pub fn push_stack_frame(
