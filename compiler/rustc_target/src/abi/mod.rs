@@ -754,7 +754,8 @@ impl AddAssign for MemoryLayoutPref {
 
 /// An aligned size.
 /// Better name appreciated.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Encodable, Decodable)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Encodable, Decodable, HashStable_Generic)]
 pub struct MemoryLayout {
     /// A size not rounded up to alignment
     pub size: Size,

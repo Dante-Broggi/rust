@@ -317,15 +317,16 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
                 kind
             );
         }
-        if let Some(MemoryLayout { size, align }) = old_layout {
-            if size != alloc.size() || align != alloc.align {
+        if let Some(layout) = old_layout {
+            let got_layout = MemoryLayout::new(alloc.size(), alloc.align);
+            if layout != got_layout {
                 throw_ub_format!(
                     "incorrect layout on deallocation: {} has size {} and alignment {}, but gave size {} and alignment {}",
                     alloc_id,
-                    alloc.size().bytes(),
-                    alloc.align.bytes(),
-                    size.bytes(),
-                    align.bytes(),
+                    got_layout.size.bytes(),
+                    got_layout.align.bytes(),
+                    layout.size.bytes(),
+                    layout.align.bytes(),
                 )
             }
         }
