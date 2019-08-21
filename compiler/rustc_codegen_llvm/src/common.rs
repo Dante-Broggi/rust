@@ -250,7 +250,9 @@ impl ConstMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                     GlobalAlloc::Memory(alloc) => {
                         let init = const_alloc_to_llvm(self, alloc);
                         let value = match alloc.mutability {
-                            Mutability::Mut => self.static_addr_of_mut(init, alloc.align, None),
+                            Mutability::Mut => {
+                                self.static_addr_of_mut(init, alloc.align, None)
+                            }
                             _ => self.static_addr_of(init, alloc.align, None),
                         };
                         if !self.sess().fewer_names() {

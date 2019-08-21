@@ -202,6 +202,10 @@ impl<Tag, Extra> Allocation<Tag, Extra> {
         Size::from_bytes(self.len())
     }
 
+    pub fn layout(&self) -> MemoryLayout {
+        MemoryLayout::new(self.size(), self.align)
+    }
+
     /// Looks at a slice which may describe uninitialized bytes or describe a relocation. This differs
     /// from `get_bytes_with_uninit_and_ptr` in that it does no relocation checks (even on the
     /// edges) at all.

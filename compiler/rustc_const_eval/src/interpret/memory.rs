@@ -317,14 +317,16 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
                 kind
             );
         }
+
+        let bytes_layout = alloc.layout();
+
         if let Some(layout) = old_layout {
-            let got_layout = MemoryLayout::new(alloc.size(), alloc.align);
-            if layout != got_layout {
+            if layout != bytes_layout {
                 throw_ub_format!(
                     "incorrect layout on deallocation: {} has size {} and alignment {}, but gave size {} and alignment {}",
                     alloc_id,
-                    got_layout.size.bytes(),
-                    got_layout.align.bytes(),
+                    bytes_layout.size.bytes(),
+                    bytes_layout.align.bytes(),
                     layout.size.bytes(),
                     layout.align.bytes(),
                 )
@@ -332,16 +334,16 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
         }
 
         // Let the machine take some extra action
-        let size = alloc.size();
+        let layout = alloc.layout();
         M::memory_deallocated(
             &mut self.extra,
             &mut alloc.extra,
             ptr.provenance,
-            alloc_range(Size::ZERO, size),
+            alloc_range(Size::ZERO, layout.size),
         )?;
 
         // Don't forget to remember size and align of this now-dead allocation
-        let old = self.dead_alloc_map.insert(alloc_id, (size, alloc.align));
+        let old = self.dead_alloc_map.insert(alloc_id, (layout.size, layout.align));
         if old.is_some() {
             bug!("Nothing can be deallocated twice");
         }
