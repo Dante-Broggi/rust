@@ -107,7 +107,7 @@ pub struct Memory<'mir, 'tcx, M: Machine<'mir, 'tcx>> {
     /// to ZSTs (where pointers may dangle), we keep track of the size even for allocations
     /// that do not exist any more.
     // FIXME: this should not be public, but interning currently needs access to it
-    pub(super) dead_alloc_map: FxHashMap<AllocId, (Size, Align)>,
+    pub(super) dead_alloc_map: FxHashMap<AllocId, MemoryLayout>,
 
     /// Extra data added by the machine.
     pub extra: M::MemoryExtra,
@@ -334,16 +334,15 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
         }
 
         // Let the machine take some extra action
-        let layout = alloc.layout();
         M::memory_deallocated(
             &mut self.extra,
             &mut alloc.extra,
             ptr.provenance,
-            alloc_range(Size::ZERO, layout.size),
+            alloc_range(Size::ZERO, bytes_layout.size),
         )?;
 
         // Don't forget to remember size and align of this now-dead allocation
-        let old = self.dead_alloc_map.insert(alloc_id, (layout.size, layout.align));
+        let old = self.dead_alloc_map.insert(alloc_id, bytes_layout);
         if old.is_some() {
             bug!("Nothing can be deallocated twice");
         }
@@ -366,9 +365,9 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
             align,
             CheckInAllocMsg::MemoryAccessTest,
             |alloc_id, offset, ptr| {
-                let (size, align) =
-                    self.get_size_and_align(alloc_id, AllocCheck::Dereferenceable)?;
-                Ok((size, align, (alloc_id, offset, ptr)))
+                let layout =
+                self.get_size_and_align(alloc_id, AllocCheck::Dereferenceable)?;
+                Ok((layout.size, layout.align, (alloc_id, offset, ptr)))
             },
         )
     }
@@ -393,8 +392,8 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
                     AllocCheck::Live
                 }
             };
-            let (size, align) = self.get_size_and_align(alloc_id, check)?;
-            Ok((size, align, ()))
+            let layout = self.get_size_and_align(alloc_id, check)?;
+            Ok((layout.size, layout.align, ()))
         })?;
         Ok(())
     }
@@ -453,12 +452,13 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
             }
             Ok((alloc_id, offset, ptr)) => {
                 let (alloc_size, alloc_align, ret_val) = alloc_size(alloc_id, offset, ptr)?;
+                let alloc_layout = MemoryLayout::new(alloc_size, alloc_align);
                 // Test bounds. This also ensures non-null.
                 // It is sufficient to check this for the end pointer. Also check for overflow!
-                if offset.checked_add(size, &self.tcx).map_or(true, |end| end > alloc_size) {
+                if offset.checked_add(size, &self.tcx).map_or(true, |end| end > alloc_layout.size) {
                     throw_ub!(PointerOutOfBounds {
                         alloc_id,
-                        alloc_size,
+                        alloc_size: alloc_layout.size,
                         ptr_offset: self.machine_usize_to_isize(offset.bytes()),
                         ptr_size: size,
                         msg,
@@ -474,8 +474,11 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
                         check_offset_align(addr, align)?;
                     } else {
                         // Check allocation alignment and offset alignment.
-                        if alloc_align.bytes() < align.bytes() {
-                            throw_ub!(AlignmentCheckFailed { has: alloc_align, required: align });
+                        if alloc_layout.align.bytes() < align.bytes() {
+                            throw_ub!(AlignmentCheckFailed {
+                                has: alloc_layout.align,
+                                required: align
+                            });
                         }
                         check_offset_align(offset.bytes(), align)?;
                     }
@@ -492,12 +495,12 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
     pub fn ptr_may_be_null(&self, ptr: Pointer<Option<M::PointerTag>>) -> bool {
         match self.ptr_try_get_alloc(ptr) {
             Ok((alloc_id, offset, _)) => {
-                let (size, _align) = self
+                let layout = self
                     .get_size_and_align(alloc_id, AllocCheck::MaybeDead)
                     .expect("alloc info with MaybeDead cannot fail");
                 // If the pointer is out-of-bounds, it may be null.
                 // Note that one-past-the-end (offset == size) is still inbounds, and never null.
-                offset > size
+                offset > layout.size
             }
             Err(offset) => offset == 0,
         }
@@ -696,13 +699,13 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
         &self,
         id: AllocId,
         liveness: AllocCheck,
-    ) -> InterpResult<'static, (Size, Align)> {
+    ) -> InterpResult<'static, MemoryLayout> {
         // # Regular allocations
         // Don't use `self.get_raw` here as that will
         // a) cause cycles in case `id` refers to a static
         // b) duplicate a global's allocation in miri
         if let Some((_, alloc)) = self.alloc_map.get(id) {
-            return Ok((alloc.size(), alloc.align));
+            return Ok(alloc.layout());
         }
 
         // # Function pointers
@@ -712,7 +715,7 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
                 // The caller requested no function pointers.
                 throw_ub!(DerefFunctionPointer(id))
             } else {
-                Ok((Size::ZERO, Align::ONE))
+                Ok(MemoryLayout::new(Size::ZERO, Align::ONE))
             };
         }
 
@@ -725,12 +728,12 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
                 // Use size and align of the type.
                 let ty = self.tcx.type_of(did);
                 let layout = self.tcx.layout_of(ParamEnv::empty().and(ty)).unwrap();
-                Ok((layout.size, layout.align.abi))
+                Ok(layout.memory_layout())
             }
             Some(GlobalAlloc::Memory(alloc)) => {
                 // Need to duplicate the logic here, because the global allocations have
                 // different associated types than the interpreter-local ones.
-                Ok((alloc.size(), alloc.align))
+                Ok(alloc.layout())
             }
             Some(GlobalAlloc::Function(_)) => bug!("We already checked function pointers above"),
             // The rest must be dead.
