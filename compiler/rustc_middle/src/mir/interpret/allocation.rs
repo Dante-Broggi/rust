@@ -9,7 +9,7 @@ use std::ptr;
 use rustc_ast::Mutability;
 use rustc_data_structures::sorted_map::SortedMap;
 use rustc_span::DUMMY_SP;
-use rustc_target::abi::{Align, HasDataLayout, Size};
+use rustc_target::abi::{Align, HasDataLayout, MemoryLayout, Size};
 
 use super::{
     read_target_uint, write_target_uint, AllocId, InterpError, InterpResult, Pointer, Provenance,
@@ -130,8 +130,8 @@ impl<Tag> Allocation<Tag> {
 
     /// Try to create an Allocation of `size` bytes, failing if there is not enough memory
     /// available to the compiler to do so.
-    pub fn uninit(size: Size, align: Align, panic_on_fail: bool) -> InterpResult<'static, Self> {
-        let bytes = Box::<[u8]>::try_new_zeroed_slice(size.bytes_usize()).map_err(|_| {
+    pub fn uninit(layout: MemoryLayout, panic_on_fail: bool) -> InterpResult<'static, Self> {
+        let bytes = Box::<[u8]>::try_new_zeroed_slice(layout.size.bytes_usize()).map_err(|_| {
             // This results in an error that can happen non-deterministically, since the memory
             // available to the compiler can change between runs. Normally queries are always
             // deterministic. However, we can be non-determinstic here because all uses of const
@@ -150,8 +150,8 @@ impl<Tag> Allocation<Tag> {
         Ok(Allocation {
             bytes,
             relocations: Relocations::new(),
-            init_mask: InitMask::new(size, false),
-            align,
+            init_mask: InitMask::new(layout.size, false),
+            align: layout.align,
             mutability: Mutability::Mut,
             extra: (),
         })
