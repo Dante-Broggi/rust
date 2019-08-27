@@ -308,7 +308,7 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
                 // If we know the alignment, pick something better than i8.
                 let (pointee, address_space) =
                     if let Some(pointee) = self.pointee_info_at(cx, offset) {
-                        (cx.type_pointee_for_align(pointee.align), pointee.address_space)
+                        (cx.type_pointee_for_align(pointee.layout.align), pointee.address_space)
                     } else {
                         (cx.type_i8(), AddressSpace::DATA)
                     };

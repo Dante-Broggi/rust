@@ -127,9 +127,9 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                     .layout
                     .pointee_info_at(&bx, rustc_target::abi::Size::ZERO)
                     .expect("Expected pointer");
-                let bytes = bx.mul(count, bx.const_usize(pointee_layout.size.bytes()));
+                let bytes = bx.mul(count, bx.const_usize(pointee_layout.layout.size.bytes()));
 
-                let align = pointee_layout.align;
+                let align = pointee_layout.layout.align;
                 let dst = dst_val.immediate();
                 let src = src_val.immediate();
                 bx.memcpy(dst, align, src, align, bytes, crate::MemFlags::empty());

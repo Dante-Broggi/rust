@@ -2422,16 +2422,14 @@ where
         let pointee_info = match *this.ty.kind() {
             ty::RawPtr(mt) if offset.bytes() == 0 => {
                 tcx.layout_of(param_env.and(mt.ty)).ok().map(|layout| PointeeInfo {
-                    size: layout.size,
-                    align: layout.align.abi,
+                    layout: layout.memory_layout(),
                     safe: None,
                     address_space: addr_space_of_ty(mt.ty),
                 })
             }
             ty::FnPtr(fn_sig) if offset.bytes() == 0 => {
                 tcx.layout_of(param_env.and(tcx.mk_fn_ptr(fn_sig))).ok().map(|layout| PointeeInfo {
-                    size: layout.size,
-                    align: layout.align.abi,
+                    layout: layout.memory_layout(),
                     safe: None,
                     address_space: cx.data_layout().instruction_address_space,
                 })
@@ -2467,8 +2465,7 @@ where
                 };
 
                 tcx.layout_of(param_env.and(ty)).ok().map(|layout| PointeeInfo {
-                    size: layout.size,
-                    align: layout.align.abi,
+                    layout: layout.memory_layout(),
                     safe: Some(kind),
                     address_space,
                 })
@@ -3040,14 +3037,14 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
 
             if let Some(pointee) = layout.pointee_info_at(self, offset) {
                 if let Some(kind) = pointee.safe {
-                    attrs.pointee_align = Some(pointee.align);
+                    attrs.pointee_align = Some(pointee.layout.align);
 
                     // `Box` (`UniqueBorrowed`) are not necessarily dereferenceable
                     // for the entire duration of the function as they can be deallocated
                     // at any time. Set their valid size to 0.
                     attrs.pointee_size = match kind {
                         PointerKind::UniqueOwned => Size::ZERO,
-                        _ => pointee.size,
+                        _ => pointee.layout.size,
                     };
 
                     // `Box` pointer parameters never alias because ownership is transferred
