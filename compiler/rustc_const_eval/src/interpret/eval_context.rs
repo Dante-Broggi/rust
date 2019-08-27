@@ -652,8 +652,7 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
             ty::Dynamic(..) => {
                 let vtable = self.scalar_to_ptr(metadata.unwrap_meta());
                 // Read size and align from vtable (already checks size).
-                let (size, align) = self.read_size_and_align_from_vtable(vtable)?;
-                let layout = MemoryLayout::new(size, align);
+                let layout = self.read_layout_from_vtable(vtable)?;
                 Ok(Some(layout))
             }
 

@@ -5,7 +5,7 @@ use rustc_middle::ty::{
     self, Ty, COMMON_VTABLE_ENTRIES, COMMON_VTABLE_ENTRIES_ALIGN,
     COMMON_VTABLE_ENTRIES_DROPINPLACE, COMMON_VTABLE_ENTRIES_SIZE,
 };
-use rustc_target::abi::{Align, Size};
+use rustc_target::abi::{Align, MemoryLayout, Size};
 
 use super::util::ensure_monomorphic_enough;
 use super::{FnVal, InterpCx, Machine};
@@ -84,10 +84,10 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
         Ok((drop_instance, ty))
     }
 
-    pub fn read_size_and_align_from_vtable(
+    pub fn read_layout_from_vtable(
         &self,
         vtable: Pointer<Option<M::PointerTag>>,
-    ) -> InterpResult<'tcx, (Size, Align)> {
+    ) -> InterpResult<'tcx, MemoryLayout> {
         let ptr_mem = self.pointer().memory_layout();
         // We check for `size = 3 * ptr_size`, which covers the drop fn (unused here),
         // the size, and the align (which we read below).
@@ -108,7 +108,7 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
         if size >= self.tcx.data_layout.obj_size_bound() {
             throw_ub!(InvalidVtableSize);
         }
-        Ok((Size::from_bytes(size), align))
+        Ok(MemoryLayout::new(Size::from_bytes(size), align))
     }
 
     pub fn read_new_vtable_after_trait_upcasting_from_vtable(

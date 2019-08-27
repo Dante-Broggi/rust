@@ -1096,10 +1096,9 @@ where
 
         // More sanity checks
         if cfg!(debug_assertions) {
-            let (size, align) = self.read_size_and_align_from_vtable(vtable)?;
-            assert_eq!(size, layout.size);
+            let memory = self.read_layout_from_vtable(vtable)?;
             // only ABI alignment is preserved
-            assert_eq!(align, layout.align.abi);
+            assert_eq!(memory, layout.memory_layout());
         }
 
         let mplace = MPlaceTy { mplace: MemPlace { meta: MemPlaceMeta::None, ..**mplace }, layout };

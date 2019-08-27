@@ -342,7 +342,7 @@ impl<'rt, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> ValidityVisitor<'rt, 'mir, '
                         { "invalid drop function pointer in vtable (function has incompatible signature)" },
                 );
                 try_validation!(
-                    self.ecx.read_size_and_align_from_vtable(vtable),
+                    self.ecx.read_layout_from_vtable(vtable),
                     self.path,
                     err_ub!(InvalidVtableSize) =>
                         { "invalid vtable: size is bigger than largest supported object" },
