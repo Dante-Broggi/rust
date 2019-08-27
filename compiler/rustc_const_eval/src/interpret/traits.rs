@@ -45,11 +45,11 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
         vtable: Pointer<Option<M::PointerTag>>,
         idx: u64,
     ) -> InterpResult<'tcx, FnVal<'tcx, M::ExtraFnVal>> {
-        let ptr_mem = self.pointer();
+        let ptr_mem = self.pointer().memory_layout();
         let vtable_slot = vtable.offset((ptr_mem * idx).size, self)?;
         let vtable_slot = self
             .memory
-            .get(vtable_slot, ptr_mem.size, ptr_mem.align.abi)?
+            .get(vtable_slot, ptr_mem.size, ptr_mem.align)?
             .expect("cannot be a ZST");
         let fn_ptr = self.scalar_to_ptr(vtable_slot.read_ptr_sized(Size::ZERO)?.check_init()?);
         self.memory.get_fn(fn_ptr)
@@ -95,7 +95,7 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
         &self,
         vtable: Pointer<Option<M::PointerTag>>,
     ) -> InterpResult<'tcx, (Size, Align)> {
-        let ptr_mem = self.pointer();
+        let ptr_mem = self.pointer().memory_layout();
         // We check for `size = 3 * ptr_size`, which covers the drop fn (unused here),
         // the size, and the align (which we read below).
         let vtable = self

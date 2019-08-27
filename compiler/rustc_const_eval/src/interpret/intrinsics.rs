@@ -544,8 +544,7 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
     ) -> InterpResult<'tcx> {
         let count = self.read_scalar(&count)?.to_machine_usize(self)?;
         let layout = self.layout_of(src.layout.ty.builtin_deref(true).unwrap().ty)?;
-        let (size, align) = (layout.size, layout.align.abi);
-        let size = size.checked_mul(count, self).ok_or_else(|| {
+        let layout = layout.memory_layout().checked_mul(count, self).ok_or_else(|| {
             err_ub_format!(
                 "overflow computing total size of `{}`",
                 if nonoverlapping { "copy_nonoverlapping" } else { "copy" }
@@ -555,7 +554,7 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
         let src = self.read_pointer(&src)?;
         let dst = self.read_pointer(&dst)?;
 
-        self.memory.copy(src, align, dst, align, size, nonoverlapping)
+        self.memory.copy(src, layout.align, dst, layout.align, layout.size, nonoverlapping)
     }
 
     pub(crate) fn raw_eq_intrinsic(

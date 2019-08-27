@@ -312,12 +312,13 @@ impl<'rt, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> ValidityVisitor<'rt, 'mir, '
         match tail.kind() {
             ty::Dynamic(..) => {
                 let vtable = self.ecx.scalar_to_ptr(meta.unwrap_meta());
+                let layout = 3 * self.ecx.tcx.data_layout.pointer.memory_layout(); // drop, size, align
                 // Direct call to `check_ptr_access_align` checks alignment even on CTFE machines.
                 try_validation!(
                     self.ecx.memory.check_ptr_access_align(
                         vtable,
-                        3 * self.ecx.tcx.data_layout.pointer.size, // drop, size, align
-                        self.ecx.tcx.data_layout.pointer.align.abi,
+                        layout.size,
+                        layout.align,
                         CheckInAllocMsg::InboundsTest, // will anyway be replaced by validity message
                     ),
                     self.path,

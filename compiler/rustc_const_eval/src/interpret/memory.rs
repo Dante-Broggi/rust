@@ -355,13 +355,12 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
     fn get_ptr_access(
         &self,
         ptr: Pointer<Option<M::PointerTag>>,
-        size: Size,
-        align: Align,
+        layout: MemoryLayout,
     ) -> InterpResult<'tcx, Option<(AllocId, Size, Pointer<M::PointerTag>)>> {
-        let align = M::enforce_alignment(&self.extra).then_some(align);
+        let align = M::enforce_alignment(&self.extra).then_some(layout.align);
         self.check_and_deref_ptr(
             ptr,
-            size,
+            layout.size,
             align,
             CheckInAllocMsg::MemoryAccessTest,
             |alloc_id, offset, ptr| {
@@ -668,7 +667,8 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
         size: Size,
         align: Align,
     ) -> InterpResult<'tcx, Option<AllocRefMut<'a, 'tcx, M::PointerTag, M::AllocExtra>>> {
-        let parts = self.get_ptr_access(ptr, size, align)?;
+        let layout = MemoryLayout::new(size, align);
+        let parts = self.get_ptr_access(ptr, layout)?;
         if let Some((alloc_id, offset, ptr)) = parts {
             let tcx = self.tcx;
             // FIXME: can we somehow avoid looking up the allocation twice here?
@@ -1039,11 +1039,13 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
         nonoverlapping: bool,
     ) -> InterpResult<'tcx> {
         let tcx = self.tcx;
+        let src_layout = MemoryLayout::new(size, src_align);
+        let dest_layout = MemoryLayout::new(size, dest_align) * num_copies; // `Size` multiplication
         // We need to do our own bounds-checks.
-        let src_parts = self.get_ptr_access(src, size, src_align)?;
-        let dest_parts = self.get_ptr_access(dest, size * num_copies, dest_align)?; // `Size` multiplication
+        let src_parts = self.get_ptr_access(src, src_layout)?;
+        let dest_parts = self.get_ptr_access(dest, dest_layout)?;
 
-        // FIXME: we look up both allocations twice here, once ebfore for the `check_ptr_access`
+        // FIXME: we look up both allocations twice here, once before for the `check_ptr_access`
         // and once below to get the underlying `&[mut] Allocation`.
 
         // Source alloc preparations and access hooks.
