@@ -1761,8 +1761,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
             self.tcx.sess.code_stats.record_type_size(
                 kind,
                 type_desc,
-                layout.align.abi,
-                layout.size,
+                layout.memory_layout(),
                 packed,
                 opt_discr_size,
                 variants,

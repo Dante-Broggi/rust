@@ -1,6 +1,6 @@
 use rustc_data_structures::fx::FxHashSet;
 use rustc_data_structures::sync::Lock;
-use rustc_target::abi::{Align, Size};
+use rustc_target::abi::{MemoryLayout, Size};
 use std::cmp::{self, Ordering};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -55,8 +55,7 @@ impl CodeStats {
         &self,
         kind: DataTypeKind,
         type_desc: S,
-        align: Align,
-        overall_size: Size,
+        layout: MemoryLayout,
         packed: bool,
         opt_discr_size: Option<Size>,
         mut variants: Vec<VariantInfo>,
@@ -68,8 +67,8 @@ impl CodeStats {
         let info = TypeSizeInfo {
             kind,
             type_description: type_desc.to_string(),
-            align: align.bytes(),
-            overall_size: overall_size.bytes(),
+            align: layout.align.bytes(),
+            overall_size: layout.size.bytes(),
             packed,
             opt_discr_size: opt_discr_size.map(|s| s.bytes()),
             variants,
