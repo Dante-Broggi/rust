@@ -96,11 +96,11 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
             .get(vtable, ptr_mem * u64::try_from(COMMON_VTABLE_ENTRIES.len()).unwrap())?
             .expect("cannot be a ZST");
         let size = vtable
-            .read_ptr_sized((ptr_mem * u64::try_from(COMMON_VTABLE_ENTRIES_SIZE).unwrap()).size)?
+            .read_ptr_sized((ptr_mem * u64::try_from(COMMON_VTABLE_ENTRIES_SIZE).unwrap()).stride())?
             .check_init()?;
         let size = size.to_machine_usize(self)?;
         let align = vtable
-            .read_ptr_sized((ptr_mem * u64::try_from(COMMON_VTABLE_ENTRIES_ALIGN).unwrap()).size)?
+            .read_ptr_sized((ptr_mem * u64::try_from(COMMON_VTABLE_ENTRIES_ALIGN).unwrap()).stride())?
             .check_init()?;
         let align = align.to_machine_usize(self)?;
         let align = Align::from_bytes(align).map_err(|e| err_ub!(InvalidVtableAlignment(e)))?;

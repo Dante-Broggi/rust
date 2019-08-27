@@ -148,7 +148,7 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
 
                 let result = match intrinsic_name {
                     sym::min_align_of_val => memory.align.bytes(),
-                    sym::size_of_val => memory.size.bytes(),
+                    sym::size_of_val => memory.stride().bytes(),
                     _ => bug!(),
                 };
 
