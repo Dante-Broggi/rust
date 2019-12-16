@@ -283,7 +283,7 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
                     throw_inval!(SizeOfUnsizedType(ty));
                 }
                 let val = match null_op {
-                    mir::NullOp::SizeOf => layout.size.bytes(),
+                    mir::NullOp::SizeOf => layout.stride().bytes(),
                     mir::NullOp::AlignOf => layout.align.abi.bytes(),
                     mir::NullOp::Box => unreachable!(),
                 };

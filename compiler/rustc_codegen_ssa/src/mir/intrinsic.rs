@@ -87,7 +87,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                     let (llsize, _) = glue::size_and_align_of_dst(bx, tp_ty, Some(meta));
                     llsize
                 } else {
-                    bx.const_usize(bx.layout_of(tp_ty).size.bytes())
+                    bx.const_usize(bx.layout_of(tp_ty).stride().bytes())
                 }
             }
             sym::min_align_of_val => {

@@ -516,7 +516,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 assert!(bx.cx().type_is_sized(ty));
                 let layout = bx.cx().layout_of(ty);
                 let val = match null_op {
-                    mir::NullOp::SizeOf => layout.size.bytes(),
+                    mir::NullOp::SizeOf => layout.stride().bytes(),
                     mir::NullOp::AlignOf => layout.align.abi.bytes(),
                     mir::NullOp::Box => unreachable!(),
                 };

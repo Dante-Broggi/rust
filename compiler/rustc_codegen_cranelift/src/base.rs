@@ -740,7 +740,7 @@ fn codegen_stmt<'tcx>(
                     );
                     let layout = fx.layout_of(fx.monomorphize(ty));
                     let val = match null_op {
-                        NullOp::SizeOf => layout.size.bytes(),
+                        NullOp::SizeOf => layout.stride().bytes(),
                         NullOp::AlignOf => layout.align.abi.bytes(),
                         NullOp::Box => unreachable!(),
                     };
