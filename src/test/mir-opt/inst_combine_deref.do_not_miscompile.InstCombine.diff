@@ -64,10 +64,10 @@
                                            // + literal: Const { ty: fn(&'static str) -> ! {core::panicking::panic}, val: Value(Scalar(<ZST>)) }
                                            // ty::Const
                                            // + ty: &str
-                                           // + val: Value(Slice { data: Allocation { bytes: [97, 115, 115, 101, 114, 116, 105, 111, 110, 32, 102, 97, 105, 108, 101, 100, 58, 32, 42, 121, 32, 61, 61, 32, 57, 57], relocations: Relocations(SortedMap { data: [] }), init_mask: InitMask { blocks: [67108863], len: Size { raw: 26 } }, size: Size { raw: 26 }, align: Align { pow2: 0 }, mutability: Not, extra: () }, start: 0, end: 26 })
+                                           // + val: Value(Slice { data: Allocation { bytes: [97, 115, 115, 101, 114, 116, 105, 111, 110, 32, 102, 97, 105, 108, 101, 100, 58, 32, 42, 121, 32, 61, 61, 32, 57, 57], relocations: Relocations(SortedMap { data: [] }), init_mask: InitMask { blocks: [67108863], len: Size { raw: 26 } }, layout: MemoryLayout { size: Size { raw: 26 }, align: Align { pow2: 0 } }, mutability: Not, extra: () }, start: 0, end: 26 })
                                            // mir::Constant
                                            // + span: $DIR/inst_combine_deref.rs:1:1: 1:1
-                                           // + literal: Const { ty: &str, val: Value(Slice { data: Allocation { bytes: [97, 115, 115, 101, 114, 116, 105, 111, 110, 32, 102, 97, 105, 108, 101, 100, 58, 32, 42, 121, 32, 61, 61, 32, 57, 57], relocations: Relocations(SortedMap { data: [] }), init_mask: InitMask { blocks: [67108863], len: Size { raw: 26 } }, size: Size { raw: 26 }, align: Align { pow2: 0 }, mutability: Not, extra: () }, start: 0, end: 26 }) }
+                                           // + literal: Const { ty: &str, val: Value(Slice { data: Allocation { bytes: [97, 115, 115, 101, 114, 116, 105, 111, 110, 32, 102, 97, 105, 108, 101, 100, 58, 32, 42, 121, 32, 61, 61, 32, 57, 57], relocations: Relocations(SortedMap { data: [] }), init_mask: InitMask { blocks: [67108863], len: Size { raw: 26 } }, layout: MemoryLayout { size: Size { raw: 26 }, align: Align { pow2: 0 } }, mutability: Not, extra: () }, start: 0, end: 26 }) }
       }
   
       bb2: {

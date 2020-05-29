@@ -32,16 +32,18 @@ error: layout_of(A) = Layout {
                     sized: true,
                 },
                 largest_niche: None,
-                align: AbiAndPrefAlign {
-                    abi: Align {
-                        pow2: 0,
+                memory_pref: MemoryLayoutPref {
+                    size: Size {
+                        raw: 1,
                     },
-                    pref: Align {
-                        pow2: 2,
+                    align: AbiAndPrefAlign {
+                        abi: Align {
+                            pow2: 0,
+                        },
+                        pref: Align {
+                            pow2: 2,
+                        },
                     },
-                },
-                size: Size {
-                    raw: 1,
                 },
             },
         ],
@@ -69,16 +71,18 @@ error: layout_of(A) = Layout {
             },
         },
     ),
-    align: AbiAndPrefAlign {
-        abi: Align {
-            pow2: 0,
+    memory_pref: MemoryLayoutPref {
+        size: Size {
+            raw: 1,
         },
-        pref: Align {
-            pow2: 2,
+        align: AbiAndPrefAlign {
+            abi: Align {
+                pow2: 0,
+            },
+            pref: Align {
+                pow2: 2,
+            },
         },
-    },
-    size: Size {
-        raw: 1,
     },
 }
   --> $DIR/thumb-enum.rs:16:1
@@ -120,16 +124,18 @@ error: layout_of(B) = Layout {
                     sized: true,
                 },
                 largest_niche: None,
-                align: AbiAndPrefAlign {
-                    abi: Align {
-                        pow2: 0,
+                memory_pref: MemoryLayoutPref {
+                    size: Size {
+                        raw: 1,
                     },
-                    pref: Align {
-                        pow2: 2,
+                    align: AbiAndPrefAlign {
+                        abi: Align {
+                            pow2: 0,
+                        },
+                        pref: Align {
+                            pow2: 2,
+                        },
                     },
-                },
-                size: Size {
-                    raw: 1,
                 },
             },
         ],
@@ -157,16 +163,18 @@ error: layout_of(B) = Layout {
             },
         },
     ),
-    align: AbiAndPrefAlign {
-        abi: Align {
-            pow2: 0,
+    memory_pref: MemoryLayoutPref {
+        size: Size {
+            raw: 1,
         },
-        pref: Align {
-            pow2: 2,
+        align: AbiAndPrefAlign {
+            abi: Align {
+                pow2: 0,
+            },
+            pref: Align {
+                pow2: 2,
+            },
         },
-    },
-    size: Size {
-        raw: 1,
     },
 }
   --> $DIR/thumb-enum.rs:20:1
@@ -208,16 +216,18 @@ error: layout_of(C) = Layout {
                     sized: true,
                 },
                 largest_niche: None,
-                align: AbiAndPrefAlign {
-                    abi: Align {
-                        pow2: 1,
+                memory_pref: MemoryLayoutPref {
+                    size: Size {
+                        raw: 2,
                     },
-                    pref: Align {
-                        pow2: 2,
+                    align: AbiAndPrefAlign {
+                        abi: Align {
+                            pow2: 1,
+                        },
+                        pref: Align {
+                            pow2: 2,
+                        },
                     },
-                },
-                size: Size {
-                    raw: 2,
                 },
             },
         ],
@@ -245,16 +255,18 @@ error: layout_of(C) = Layout {
             },
         },
     ),
-    align: AbiAndPrefAlign {
-        abi: Align {
-            pow2: 1,
+    memory_pref: MemoryLayoutPref {
+        size: Size {
+            raw: 2,
         },
-        pref: Align {
-            pow2: 2,
+        align: AbiAndPrefAlign {
+            abi: Align {
+                pow2: 1,
+            },
+            pref: Align {
+                pow2: 2,
+            },
         },
-    },
-    size: Size {
-        raw: 2,
     },
 }
   --> $DIR/thumb-enum.rs:24:1
@@ -296,16 +308,18 @@ error: layout_of(P) = Layout {
                     sized: true,
                 },
                 largest_niche: None,
-                align: AbiAndPrefAlign {
-                    abi: Align {
-                        pow2: 2,
+                memory_pref: MemoryLayoutPref {
+                    size: Size {
+                        raw: 4,
                     },
-                    pref: Align {
-                        pow2: 2,
+                    align: AbiAndPrefAlign {
+                        abi: Align {
+                            pow2: 2,
+                        },
+                        pref: Align {
+                            pow2: 2,
+                        },
                     },
-                },
-                size: Size {
-                    raw: 4,
                 },
             },
         ],
@@ -333,16 +347,18 @@ error: layout_of(P) = Layout {
             },
         },
     ),
-    align: AbiAndPrefAlign {
-        abi: Align {
-            pow2: 2,
+    memory_pref: MemoryLayoutPref {
+        size: Size {
+            raw: 4,
         },
-        pref: Align {
-            pow2: 2,
+        align: AbiAndPrefAlign {
+            abi: Align {
+                pow2: 2,
+            },
+            pref: Align {
+                pow2: 2,
+            },
         },
-    },
-    size: Size {
-        raw: 4,
     },
 }
   --> $DIR/thumb-enum.rs:28:1
@@ -384,16 +400,18 @@ error: layout_of(T) = Layout {
                     sized: true,
                 },
                 largest_niche: None,
-                align: AbiAndPrefAlign {
-                    abi: Align {
-                        pow2: 2,
+                memory_pref: MemoryLayoutPref {
+                    size: Size {
+                        raw: 4,
                     },
-                    pref: Align {
-                        pow2: 2,
+                    align: AbiAndPrefAlign {
+                        abi: Align {
+                            pow2: 2,
+                        },
+                        pref: Align {
+                            pow2: 2,
+                        },
                     },
-                },
-                size: Size {
-                    raw: 4,
                 },
             },
         ],
@@ -421,16 +439,18 @@ error: layout_of(T) = Layout {
             },
         },
     ),
-    align: AbiAndPrefAlign {
-        abi: Align {
-            pow2: 2,
+    memory_pref: MemoryLayoutPref {
+        size: Size {
+            raw: 4,
         },
-        pref: Align {
-            pow2: 2,
+        align: AbiAndPrefAlign {
+            abi: Align {
+                pow2: 2,
+            },
+            pref: Align {
+                pow2: 2,
+            },
         },
-    },
-    size: Size {
-        raw: 4,
     },
 }
   --> $DIR/thumb-enum.rs:34:1
