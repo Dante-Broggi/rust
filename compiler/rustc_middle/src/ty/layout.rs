@@ -415,13 +415,13 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
             }
 
             // Invariant: offset < dl.obj_size_bound() <= 1<<61
-            let field_align = if let Some(pack) = pack {
-                field.align.min(AbiAndPrefAlign::new(pack))
+            let field_mem = if let Some(pack) = pack {
+                field.memory_pref.pack_to(AbiAndPrefAlign::new(pack))
             } else {
-                field.align
+                field.memory_pref
             };
-            offset = offset.align_to(field_align.abi);
-            align = align.max(field_align);
+            offset = offset.align_to(field_mem.align.abi);
+            align = align.max(field_mem.align);
 
             debug!("univariant offset: {:?} field: {:#?}", offset, field);
             offsets[i as usize] = offset;
