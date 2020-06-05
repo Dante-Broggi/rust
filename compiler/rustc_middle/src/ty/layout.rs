@@ -264,7 +264,7 @@ enum StructKind {
     /// A univariant, the last field of which may be coerced to unsized.
     MaybeUnsized,
     /// A univariant, but with a prefix of an arbitrary size & alignment (e.g., enum tag).
-    Prefixed(Size, Align),
+    Prefixed(MemoryLayout),
 }
 
 // Invert a bijective mapping, i.e. `invert(map)[y] = x` if `map[x] = y`.
@@ -387,11 +387,14 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
         let mut largest_niche = None;
         let mut largest_niche_available = 0;
 
-        if let StructKind::Prefixed(prefix_size, prefix_align) = kind {
-            let prefix_align =
-                if let Some(pack) = pack { prefix_align.min(pack) } else { prefix_align };
+        if let StructKind::Prefixed(prefix_memory) = kind {
+            let prefix_align = if let Some(pack) = pack {
+                prefix_memory.align.min(pack)
+            } else {
+                prefix_memory.align
+            };
             align = align.max(AbiAndPrefAlign::new(prefix_align));
-            offset = prefix_size.align_to(prefix_align);
+            offset = prefix_memory.size.align_to(prefix_align);
         }
 
         for &i in &inverse_memory_index {
@@ -1179,11 +1182,11 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                 // the alignment of the union. (This value is used both for
                 // determining the alignment of the overall enum, and the
                 // determining the alignment of the payload after the tag.)
-                let mut prefix_align = min_ity.align(dl).abi;
+                let mut prefix_memory = min_ity.memory_pref(dl).memory_layout();
                 if def.repr.c() {
                     for fields in &variants {
                         for field in fields {
-                            prefix_align = prefix_align.max(field.align.abi);
+                            prefix_memory = prefix_memory.align_to(field.align.abi);
                         }
                     }
                 }
@@ -1196,7 +1199,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                             ty,
                             &field_layouts,
                             &def.repr,
-                            StructKind::Prefixed(min_ity.size(), prefix_align),
+                            StructKind::Prefixed(prefix_memory),
                         )?;
                         st.variants = Variants::Single { index: i };
                         // Find the first field we can't move later
@@ -1649,7 +1652,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                         .map(|ty| self.layout_of(ty))
                         .collect::<Result<Vec<_>, _>>()?,
                     &ReprOptions::default(),
-                    StructKind::Prefixed(prefix_memory.size, prefix_memory.align.abi),
+                    StructKind::Prefixed(prefix_memory.memory_layout()),
                 )?;
                 variant.variants = Variants::Single { index };
 
