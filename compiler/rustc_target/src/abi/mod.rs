@@ -786,6 +786,10 @@ impl Integer {
         }
     }
 
+    pub fn memory_pref<C: HasDataLayout>(self, cx: &C) -> MemoryLayoutPref {
+        MemoryLayoutPref::new(self.size(), self.align(cx))
+    }
+
     /// Finds the smallest Integer type which can represent the signed value.
     #[inline]
     pub fn fit_signed(x: i128) -> Integer {
