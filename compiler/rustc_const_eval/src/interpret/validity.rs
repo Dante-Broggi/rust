@@ -14,7 +14,9 @@ use rustc_middle::mir::interpret::InterpError;
 use rustc_middle::ty;
 use rustc_middle::ty::layout::{LayoutOf, TyAndLayout};
 use rustc_span::symbol::{sym, Symbol};
-use rustc_target::abi::{Abi, Scalar as ScalarAbi, Size, VariantIdx, Variants, WrappingRange};
+use rustc_target::abi::{
+    Abi, MemoryLayout, Scalar as ScalarAbi, Size, VariantIdx, Variants, WrappingRange,
+};
 
 use std::hash::Hash;
 
@@ -834,6 +836,7 @@ impl<'rt, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> ValueVisitor<'mir, 'tcx, M>
                 let ty_memory = self.ecx.layout_of(tys)?.memory_pref;
                 // This is the size in bytes of the whole array. (This checks for overflow.)
                 let memory_pref = ty_memory * len;
+                let layout = MemoryLayout::new(memory_pref.size, mplace.align);
 
                 // Optimization: we just check the entire range at once.
                 // NOTE: Keep this in sync with the handling of integer and float
@@ -845,7 +848,7 @@ impl<'rt, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> ValueVisitor<'mir, 'tcx, M>
                 // to reject those pointers, we just do not have the machinery to
                 // talk about parts of a pointer.
                 // We also accept uninit, for consistency with the slow path.
-                let alloc = match self.ecx.memory.get(mplace.ptr, memory_pref.size, mplace.align)? {
+                let alloc = match self.ecx.memory.get(mplace.ptr, layout)? {
                     Some(a) => a,
                     None => {
                         // Size 0, nothing more to check.

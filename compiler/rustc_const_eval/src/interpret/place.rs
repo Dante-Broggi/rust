@@ -10,7 +10,7 @@ use rustc_macros::HashStable;
 use rustc_middle::mir;
 use rustc_middle::ty::layout::{LayoutOf, PrimitiveExt, TyAndLayout};
 use rustc_middle::ty::{self, Ty};
-use rustc_target::abi::{Abi, Align, FieldsShape, TagEncoding};
+use rustc_target::abi::{Abi, Align, FieldsShape, MemoryLayout, TagEncoding};
 use rustc_target::abi::{HasDataLayout, Size, VariantIdx, Variants};
 
 use super::{
@@ -112,6 +112,13 @@ impl<'tcx, Tag: Provenance> std::ops::Deref for MPlaceTy<'tcx, Tag> {
     #[inline(always)]
     fn deref(&self) -> &MemPlace<Tag> {
         &self.mplace
+    }
+}
+
+impl<'tcx, Tag: Provenance> MPlaceTy<'tcx, Tag> {
+    #[inline]
+    pub fn memory_layout(&self) -> MemoryLayout {
+        MemoryLayout::new(self.layout.size, self.align)
     }
 }
 
@@ -312,8 +319,7 @@ where
     ) -> InterpResult<'tcx, Option<AllocRef<'_, 'tcx, M::PointerTag, M::AllocExtra>>> {
         assert!(!place.layout.is_unsized());
         assert!(!place.meta.has_meta());
-        let size = place.layout.size;
-        self.memory.get(place.ptr, size, place.align)
+        self.memory.get(place.ptr, place.memory_layout())
     }
 
     #[inline]
@@ -323,8 +329,7 @@ where
     ) -> InterpResult<'tcx, Option<AllocRefMut<'_, 'tcx, M::PointerTag, M::AllocExtra>>> {
         assert!(!place.layout.is_unsized());
         assert!(!place.meta.has_meta());
-        let size = place.layout.size;
-        self.memory.get_mut(place.ptr, size, place.align)
+        self.memory.get_mut(place.ptr, place.memory_layout())
     }
 
     /// Check if this mplace is dereferencable and sufficiently aligned.

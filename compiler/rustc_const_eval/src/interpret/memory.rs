@@ -596,13 +596,12 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
     pub fn get<'a>(
         &'a self,
         ptr: Pointer<Option<M::PointerTag>>,
-        size: Size,
-        align: Align,
+        layout: MemoryLayout,
     ) -> InterpResult<'tcx, Option<AllocRef<'a, 'tcx, M::PointerTag, M::AllocExtra>>> {
-        let align = M::enforce_alignment(&self.extra).then_some(align);
+        let align = M::enforce_alignment(&self.extra).then_some(layout.align);
         let ptr_and_alloc = self.check_and_deref_ptr(
             ptr,
-            size,
+            layout.size,
             align,
             CheckInAllocMsg::MemoryAccessTest,
             |alloc_id, offset, ptr| {
@@ -611,7 +610,7 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
             },
         )?;
         if let Some((alloc_id, offset, ptr, alloc)) = ptr_and_alloc {
-            let range = alloc_range(offset, size);
+            let range = alloc_range(offset, layout.size);
             M::memory_read(&self.extra, &alloc.extra, ptr.provenance, range)?;
             Ok(Some(AllocRef { alloc, range, tcx: self.tcx, alloc_id }))
         } else {
@@ -664,17 +663,15 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
     pub fn get_mut<'a>(
         &'a mut self,
         ptr: Pointer<Option<M::PointerTag>>,
-        size: Size,
-        align: Align,
+        layout: MemoryLayout,
     ) -> InterpResult<'tcx, Option<AllocRefMut<'a, 'tcx, M::PointerTag, M::AllocExtra>>> {
-        let layout = MemoryLayout::new(size, align);
         let parts = self.get_ptr_access(ptr, layout)?;
         if let Some((alloc_id, offset, ptr)) = parts {
             let tcx = self.tcx;
             // FIXME: can we somehow avoid looking up the allocation twice here?
             // We cannot call `get_raw_mut` inside `check_and_deref_ptr` as that would duplicate `&mut self`.
             let (alloc, extra) = self.get_raw_mut(alloc_id)?;
-            let range = alloc_range(offset, size);
+            let range = alloc_range(offset, layout.size);
             M::memory_written(extra, &mut alloc.extra, ptr.provenance, range)?;
             Ok(Some(AllocRefMut { alloc, range, tcx, alloc_id }))
         } else {
@@ -961,7 +958,8 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
         ptr: Pointer<Option<M::PointerTag>>,
         size: Size,
     ) -> InterpResult<'tcx, &[u8]> {
-        let alloc_ref = match self.get(ptr, size, Align::ONE)? {
+        let layout = MemoryLayout::new(size, Align::ONE);
+        let alloc_ref = match self.get(ptr, layout)? {
             Some(a) => a,
             None => return Ok(&[]), // zero-sized access
         };
@@ -987,7 +985,8 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> Memory<'mir, 'tcx, M> {
         assert_eq!(lower, len, "can only write iterators with a precise length");
 
         let size = Size::from_bytes(len);
-        let alloc_ref = match self.get_mut(ptr, size, Align::ONE)? {
+        let layout = MemoryLayout::new(size, Align::ONE);
+        let alloc_ref = match self.get_mut(ptr, layout)? {
             Some(alloc_ref) => alloc_ref,
             None => {
                 // zero-sized access

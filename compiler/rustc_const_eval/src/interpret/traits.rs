@@ -47,10 +47,7 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
     ) -> InterpResult<'tcx, FnVal<'tcx, M::ExtraFnVal>> {
         let ptr_mem = self.pointer().memory_layout();
         let vtable_slot = vtable.offset((ptr_mem * idx).size, self)?;
-        let vtable_slot = self
-            .memory
-            .get(vtable_slot, ptr_mem.size, ptr_mem.align)?
-            .expect("cannot be a ZST");
+        let vtable_slot = self.memory.get(vtable_slot, ptr_mem)?.expect("cannot be a ZST");
         let fn_ptr = self.scalar_to_ptr(vtable_slot.read_ptr_sized(Size::ZERO)?.check_init()?);
         self.memory.get_fn(fn_ptr)
     }
@@ -60,19 +57,15 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
         &self,
         vtable: Pointer<Option<M::PointerTag>>,
     ) -> InterpResult<'tcx, (ty::Instance<'tcx>, Ty<'tcx>)> {
-        let pointer_size = self.pointer_size();
+        let pointer_mem = self.pointer().memory_layout();
         // We don't care about the pointee type; we just want a pointer.
         let vtable = self
             .memory
-            .get(
-                vtable,
-                pointer_size * u64::try_from(COMMON_VTABLE_ENTRIES.len()).unwrap(),
-                self.tcx.data_layout.pointer.align.abi,
-            )?
+            .get(vtable, pointer_mem * u64::try_from(COMMON_VTABLE_ENTRIES.len()).unwrap())?
             .expect("cannot be a ZST");
         let drop_fn = vtable
             .read_ptr_sized(
-                pointer_size * u64::try_from(COMMON_VTABLE_ENTRIES_DROPINPLACE).unwrap(),
+                (pointer_mem * u64::try_from(COMMON_VTABLE_ENTRIES_DROPINPLACE).unwrap()).size,
             )?
             .check_init()?;
         // We *need* an instance here, no other kind of function value, to be able
@@ -100,11 +93,7 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
         // the size, and the align (which we read below).
         let vtable = self
             .memory
-            .get(
-                vtable,
-                (ptr_mem * u64::try_from(COMMON_VTABLE_ENTRIES.len()).unwrap()).size,
-                self.tcx.data_layout.pointer.align.abi,
-            )?
+            .get(vtable, ptr_mem * u64::try_from(COMMON_VTABLE_ENTRIES.len()).unwrap())?
             .expect("cannot be a ZST");
         let size = vtable
             .read_ptr_sized((ptr_mem * u64::try_from(COMMON_VTABLE_ENTRIES_SIZE).unwrap()).size)?
@@ -127,12 +116,12 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
         vtable: Pointer<Option<M::PointerTag>>,
         idx: u64,
     ) -> InterpResult<'tcx, Pointer<Option<M::PointerTag>>> {
-        let pointer_size = self.pointer_size();
+        let pointer_mem = self.pointer().memory_layout();
 
-        let vtable_slot = vtable.offset(pointer_size * idx, self)?;
+        let vtable_slot = vtable.offset((pointer_mem * idx).stride(), self)?;
         let new_vtable = self
             .memory
-            .get(vtable_slot, pointer_size, self.tcx.data_layout.pointer.align.abi)?
+            .get(vtable_slot, pointer_mem)?
             .expect("cannot be a ZST");
 
         let new_vtable = self.scalar_to_ptr(new_vtable.read_ptr_sized(Size::ZERO)?.check_init()?);
