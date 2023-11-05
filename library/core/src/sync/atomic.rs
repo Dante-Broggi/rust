@@ -226,6 +226,7 @@ use crate::intrinsics;
 use crate::hint::spin_loop;
 use crate::marker::PhantomData;
 use crate::ptr::Pointee;
+use crate::ptr::Thin;
 
 /// A pointer metadata type which supports atomic pointers.
 #[unstable(feature = "internals", issue = "none")]
@@ -238,7 +239,6 @@ pub trait AtomicMetadata {
 impl AtomicMetadata for () {
     type PhantomAlign = ();
 }
-
 
 #[unstable(feature = "internals", issue = "none")]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -318,7 +318,7 @@ where
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T> Default for AtomicPtr<T>
+impl<T: ?Sized + Thin> Default for AtomicPtr<T>
 where
     <T as Pointee>::Metadata: AtomicMetadata,
 {
@@ -329,14 +329,9 @@ where
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-unsafe impl<T: ?Sized> Send for AtomicPtr<T> where <T as Pointee>::Metadata: AtomicMetadata {}
+unsafe impl<T> Send for AtomicPtr<T> where <T as Pointee>::Metadata: AtomicMetadata {}
 #[stable(feature = "rust1", since = "1.0.0")]
-unsafe impl<T: ?Sized> Sync for AtomicPtr<T> where <T as Pointee>::Metadata: AtomicMetadata {}
-
-/// Atomic memory orderings
-///
-/// Memory orderings specify the way atomic operations synchronize memory.
-/// In its weakest [`Ordering::Relaxed`], only the memory directly touched by the
+unsafe impl<T> Sync for AtomicPtr<T> where <T as Pointee>::Metadata: AtomicMetadata {}
 /// operation is synchronized. On the other hand, a store-load pair of [`Ordering::SeqCst`]
 /// operations synchronize other memory while additionally preserving a total order of such
 /// operations across all threads.
@@ -1223,8 +1218,10 @@ impl AtomicBool {
     }
 }
 
-#[cfg(target_has_atomic_load_store = "ptr")]
-impl<T> AtomicPtr<T> {
+impl<T: ?Sized + Thin> AtomicPtr<T>
+where
+    <T as Pointee>::Metadata: AtomicMetadata,
+{
     /// Creates a new `AtomicPtr`.
     ///
     /// # Examples
@@ -1791,7 +1788,10 @@ impl<T> AtomicPtr<T> {
     #[cfg(target_has_atomic = "ptr")]
     #[unstable(feature = "strict_provenance_atomic_ptr", issue = "99108")]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
-    pub fn fetch_ptr_add(&self, val: usize, order: Ordering) -> *mut T {
+    pub fn fetch_ptr_add(&self, val: usize, order: Ordering) -> *mut T
+    where
+        T: Sized,
+    {
         self.fetch_byte_add(val.wrapping_mul(core::mem::size_of::<T>()), order)
     }
 
@@ -1836,7 +1836,10 @@ impl<T> AtomicPtr<T> {
     #[cfg(target_has_atomic = "ptr")]
     #[unstable(feature = "strict_provenance_atomic_ptr", issue = "99108")]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
-    pub fn fetch_ptr_sub(&self, val: usize, order: Ordering) -> *mut T {
+    pub fn fetch_ptr_sub(&self, val: usize, order: Ordering) -> *mut T
+    where
+        T: Sized,
+    {
         self.fetch_byte_sub(val.wrapping_mul(core::mem::size_of::<T>()), order)
     }
 
@@ -1871,7 +1874,10 @@ impl<T> AtomicPtr<T> {
     #[cfg(target_has_atomic = "ptr")]
     #[unstable(feature = "strict_provenance_atomic_ptr", issue = "99108")]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
-    pub fn fetch_byte_add(&self, val: usize, order: Ordering) -> *mut T {
+    pub fn fetch_byte_add(&self, val: usize, order: Ordering) -> *mut T
+    where
+        T: Sized,
+    {
         // SAFETY: data races are prevented by atomic intrinsics.
         unsafe { atomic_add(self.p.get(), core::ptr::invalid_mut(val), order).cast() }
     }
@@ -1906,7 +1912,10 @@ impl<T> AtomicPtr<T> {
     #[cfg(target_has_atomic = "ptr")]
     #[unstable(feature = "strict_provenance_atomic_ptr", issue = "99108")]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
-    pub fn fetch_byte_sub(&self, val: usize, order: Ordering) -> *mut T {
+    pub fn fetch_byte_sub(&self, val: usize, order: Ordering) -> *mut T
+    where
+        T: Sized,
+    {
         // SAFETY: data races are prevented by atomic intrinsics.
         unsafe { atomic_sub(self.p.get(), core::ptr::invalid_mut(val), order).cast() }
     }
@@ -1957,7 +1966,10 @@ impl<T> AtomicPtr<T> {
     #[cfg(target_has_atomic = "ptr")]
     #[unstable(feature = "strict_provenance_atomic_ptr", issue = "99108")]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
-    pub fn fetch_or(&self, val: usize, order: Ordering) -> *mut T {
+    pub fn fetch_or(&self, val: usize, order: Ordering) -> *mut T
+    where
+        T: Sized,
+    {
         // SAFETY: data races are prevented by atomic intrinsics.
         unsafe { atomic_or(self.p.get(), core::ptr::invalid_mut(val), order).cast() }
     }
@@ -2007,7 +2019,10 @@ impl<T> AtomicPtr<T> {
     #[cfg(target_has_atomic = "ptr")]
     #[unstable(feature = "strict_provenance_atomic_ptr", issue = "99108")]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
-    pub fn fetch_and(&self, val: usize, order: Ordering) -> *mut T {
+    pub fn fetch_and(&self, val: usize, order: Ordering) -> *mut T
+    where
+        T: Sized,
+    {
         // SAFETY: data races are prevented by atomic intrinsics.
         unsafe { atomic_and(self.p.get(), core::ptr::invalid_mut(val), order).cast() }
     }
@@ -2055,7 +2070,10 @@ impl<T> AtomicPtr<T> {
     #[cfg(target_has_atomic = "ptr")]
     #[unstable(feature = "strict_provenance_atomic_ptr", issue = "99108")]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
-    pub fn fetch_xor(&self, val: usize, order: Ordering) -> *mut T {
+    pub fn fetch_xor(&self, val: usize, order: Ordering) -> *mut T
+    where
+        T: Sized,
+    {
         // SAFETY: data races are prevented by atomic intrinsics.
         unsafe { atomic_xor(self.p.get(), core::ptr::invalid_mut(val), order).cast() }
     }
@@ -2117,7 +2135,7 @@ impl From<bool> for AtomicBool {
 }
 
 #[stable(feature = "atomic_from", since = "1.23.0")]
-impl<T> From<*mut T> for AtomicPtr<T>
+impl<T: ?Sized + Thin> From<*mut T> for AtomicPtr<T>
 where
     <T as Pointee>::Metadata: AtomicMetadata,
 {
