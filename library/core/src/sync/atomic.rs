@@ -329,9 +329,14 @@ where
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-unsafe impl<T> Send for AtomicPtr<T> where <T as Pointee>::Metadata: AtomicMetadata {}
+unsafe impl<T: ?Sized> Send for AtomicPtr<T> where <T as Pointee>::Metadata: AtomicMetadata {}
 #[stable(feature = "rust1", since = "1.0.0")]
-unsafe impl<T> Sync for AtomicPtr<T> where <T as Pointee>::Metadata: AtomicMetadata {}
+unsafe impl<T: ?Sized> Sync for AtomicPtr<T> where <T as Pointee>::Metadata: AtomicMetadata {}
+
+/// Atomic memory orderings
+///
+/// Memory orderings specify the way atomic operations synchronize memory.
+/// In its weakest [`Ordering::Relaxed`], only the memory directly touched by the
 /// operation is synchronized. On the other hand, a store-load pair of [`Ordering::SeqCst`]
 /// operations synchronize other memory while additionally preserving a total order of such
 /// operations across all threads.
@@ -1218,7 +1223,7 @@ impl AtomicBool {
     }
 }
 
-impl<T: ?Sized + Thin> AtomicPtr<T>
+impl<T: ?Sized> AtomicPtr<T>
 where
     <T as Pointee>::Metadata: AtomicMetadata,
 {
@@ -3799,7 +3804,7 @@ impl fmt::Debug for AtomicBool {
 }
 
 #[stable(feature = "atomic_debug", since = "1.3.0")]
-impl<T> fmt::Debug for AtomicPtr<T>
+impl<T: ?Sized> fmt::Debug for AtomicPtr<T>
 where
     <T as Pointee>::Metadata: AtomicMetadata,
 {
