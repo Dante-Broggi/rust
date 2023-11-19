@@ -407,21 +407,39 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                     "load" => {
                         let ty = fn_args.type_at(0);
                         if int_type_width_signed(ty, bx.tcx()).is_some() || ty.is_unsafe_ptr() {
+                            // FIXME: 16/32 -bit arch
+                            let isize_size = 64;
                             let layout = bx.layout_of(ty);
                             let size = layout.size;
                             let source = args[0].immediate();
                             if ty.is_unsafe_ptr() {
                                 // Some platforms do not support atomic operations on pointers,
                                 // so we cast to integer first...
-                                let llty = bx.type_isize();
-                                let result = bx.atomic_load(
-                                    llty,
-                                    source,
-                                    parse_ordering(bx, ordering),
-                                    size,
-                                );
-                                // ... and then cast the result back to a pointer
-                                bx.inttoptr(result, bx.backend_type(layout))
+                                match (size.bits(), isize_size) {
+                                    (x, y) if x == y => {
+                                        let llty = bx.type_isize();
+                                        let result = bx.atomic_load(
+                                            llty,
+                                            source,
+                                            parse_ordering(bx, ordering),
+                                            size,
+                                        );
+                                        // ... and then cast the result back to a pointer
+                                        bx.inttoptr(result, bx.backend_type(layout))
+                                    },
+                                    (128, 64) => {
+                                        let llty = bx.type_i128();
+                                        let res = bx.atomic_load(
+                                            llty,
+                                            source,
+                                            parse_ordering(bx, ordering),
+                                            size,
+                                        );
+                                        bx.store(res, result.llval, result.align);
+                                        return;
+                                    },
+                                    _ => bug!("unknown pointer bit-size: {}", size.bits()),
+                                }
                             } else {
                                 bx.atomic_load(
                                     bx.backend_type(layout),
