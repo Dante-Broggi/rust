@@ -352,12 +352,16 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                                         let src0 = bx.ptrtoint(src0, bx.type_isize());
                                         let src0 = bx.zext(src0, bx.type_i64());
                                         let src0 = bx.shl(src0, bx.const_int(bx.type_i64(), 32));
+                                        let cmp1 = bx.zext(cmp1, bx.type_i64());
+                                        let src1 = bx.zext(src1, bx.type_i64());
                                         (bx.or(cmp0, cmp1), bx.or(src0, src1))
                                     } else {
                                         let cmp0 = bx.zext(cmp0, bx.type_i64());
                                         let cmp0 = bx.shl(cmp0, bx.const_int(bx.type_i64(), 32));
                                         let src0 = bx.zext(src0, bx.type_i64());
                                         let src0 = bx.shl(src0, bx.const_int(bx.type_i64(), 32));
+                                        let cmp1 = bx.zext(cmp1, bx.type_i64());
+                                        let src1 = bx.zext(src1, bx.type_i64());
                                         (bx.or(cmp0, cmp1), bx.or(src0, src1))
                                     }
                                 },
@@ -372,12 +376,16 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                                         let src0 = bx.ptrtoint(src0, bx.type_isize());
                                         let src0 = bx.zext(src0, bx.type_i128());
                                         let src0 = bx.shl(src0, bx.const_int(bx.type_i128(), 64));
+                                        let cmp1 = bx.zext(cmp1, bx.type_i128());
+                                        let src1 = bx.zext(src1, bx.type_i128());
                                         (bx.or(cmp0, cmp1), bx.or(src0, src1))
                                     } else {
                                         let cmp0 = bx.zext(cmp0, bx.type_i128());
                                         let cmp0 = bx.shl(cmp0, bx.const_int(bx.type_i128(), 64));
                                         let src0 = bx.zext(src0, bx.type_i128());
                                         let src0 = bx.shl(src0, bx.const_int(bx.type_i128(), 64));
+                                        let cmp1 = bx.zext(cmp1, bx.type_i128());
+                                        let src1 = bx.zext(src1, bx.type_i128());
                                         (bx.or(cmp0, cmp1), bx.or(src0, src1))
                                     }
                                 },
