@@ -327,14 +327,21 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                         if int_type_width_signed(ty, bx.tcx()).is_some() || ty.is_unsafe_ptr() {
                             let weak = instruction == "cxchgweak";
                             let dst = args[0].immediate();
-                            let mut cmp = args[1].immediate();
-                            let mut src = args[2].immediate();
-                            if ty.is_unsafe_ptr() {
-                                // Some platforms do not support atomic operations on pointers,
-                                // so we cast to integer first.
-                                cmp = bx.ptrtoint(cmp, bx.type_isize());
-                                src = bx.ptrtoint(src, bx.type_isize());
-                            }
+                            let (cmp, src) = match ( args[1].val, args[2].val) {
+                                (OperandValue::Immediate(cmp), OperandValue::Immediate(src)) => {
+                                    if ty.is_unsafe_ptr() {
+                                        // Some platforms do not support atomic operations on pointers,
+                                        // so we cast to integer first.
+                                        (
+                                            bx.ptrtoint(cmp, bx.type_isize()),
+                                            bx.ptrtoint(src, bx.type_isize())
+                                        )
+                                    } else {
+                                        (cmp, src)
+                                    }
+                                },
+                                (x, y) => bug!("not immediate: {:?} OR {:?}", x, y),
+                            };
                             let (val, success) = bx.atomic_cmpxchg(
                                 dst,
                                 cmp,
