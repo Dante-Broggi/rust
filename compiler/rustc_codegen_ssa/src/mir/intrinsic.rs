@@ -327,6 +327,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                         if int_type_width_signed(ty, bx.tcx()).is_some() || ty.is_unsafe_ptr() {
                             let weak = instruction == "cxchgweak";
                             let dst = args[0].immediate();
+                            let size = bx.layout_of(ty).size;
                             let (cmp, src) = match ( args[1].val, args[2].val) {
                                 (OperandValue::Immediate(cmp), OperandValue::Immediate(src)) => {
                                     if ty.is_unsafe_ptr() {
@@ -338,6 +339,46 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                                         )
                                     } else {
                                         (cmp, src)
+                                    }
+                                },
+                                (OperandValue::Pair(cmp0, cmp1), OperandValue::Pair(src0, src1)) if size.bits() == 64 => {
+                                    // FIXME: what if y1 is also a pointer type?
+                                    if ty.is_unsafe_ptr() {
+                                        // Some platforms do not support atomic operations on pointers,
+                                        // so we cast to integer first.
+                                        let cmp0 = bx.ptrtoint(cmp0, bx.type_isize());
+                                        let cmp0 = bx.zext(cmp0, bx.type_i64());
+                                        let cmp0 = bx.shl(cmp0, bx.const_int(bx.type_i64(), 32));
+                                        let src0 = bx.ptrtoint(src0, bx.type_isize());
+                                        let src0 = bx.zext(src0, bx.type_i64());
+                                        let src0 = bx.shl(src0, bx.const_int(bx.type_i64(), 32));
+                                        (bx.or(cmp0, cmp1), bx.or(src0, src1))
+                                    } else {
+                                        let cmp0 = bx.zext(cmp0, bx.type_i64());
+                                        let cmp0 = bx.shl(cmp0, bx.const_int(bx.type_i64(), 32));
+                                        let src0 = bx.zext(src0, bx.type_i64());
+                                        let src0 = bx.shl(src0, bx.const_int(bx.type_i64(), 32));
+                                        (bx.or(cmp0, cmp1), bx.or(src0, src1))
+                                    }
+                                },
+                                (OperandValue::Pair(cmp0, cmp1), OperandValue::Pair(src0, src1)) if size.bits() == 128 => {
+                                    // FIXME: what if y1 is also a pointer type?
+                                    if ty.is_unsafe_ptr() {
+                                        // Some platforms do not support atomic operations on pointers,
+                                        // so we cast to integer first.
+                                        let cmp0 = bx.ptrtoint(cmp0, bx.type_isize());
+                                        let cmp0 = bx.zext(cmp0, bx.type_i128());
+                                        let cmp0 = bx.shl(cmp0, bx.const_int(bx.type_i128(), 64));
+                                        let src0 = bx.ptrtoint(src0, bx.type_isize());
+                                        let src0 = bx.zext(src0, bx.type_i128());
+                                        let src0 = bx.shl(src0, bx.const_int(bx.type_i128(), 64));
+                                        (bx.or(cmp0, cmp1), bx.or(src0, src1))
+                                    } else {
+                                        let cmp0 = bx.zext(cmp0, bx.type_i128());
+                                        let cmp0 = bx.shl(cmp0, bx.const_int(bx.type_i128(), 64));
+                                        let src0 = bx.zext(src0, bx.type_i128());
+                                        let src0 = bx.shl(src0, bx.const_int(bx.type_i128(), 64));
+                                        (bx.or(cmp0, cmp1), bx.or(src0, src1))
                                     }
                                 },
                                 (x, y) => bug!("not immediate: {:?} OR {:?}", x, y),
