@@ -285,7 +285,6 @@ unsafe impl Sync for AtomicBool {}
 ///
 /// **Note**: This type is only available on platforms that support atomic
 /// loads and stores of pointers. Its size depends on the target pointer's size.
-#[cfg(target_has_atomic_load_store = "ptr")]
 #[stable(feature = "rust1", since = "1.0.0")]
 #[cfg_attr(not(test), rustc_diagnostic_item = "AtomicPtr")]
 #[cfg_attr(target_pointer_width = "16", repr(C, align(2)))]
