@@ -35,9 +35,7 @@ pub use self::visitor::ValueVisitor;
 
 pub use self::operand::Operand;
 
-use self::{
-    place::{MemPlace, Place},
-};
+use self::place::{MemPlace, Place};
 
 pub(crate) use self::intrinsics::eval_nullary_intrinsic;
 use eval_context::{from_known_layout, mir_assign_valid_types};
