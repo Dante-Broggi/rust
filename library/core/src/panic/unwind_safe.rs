@@ -4,7 +4,8 @@ use crate::fmt;
 use crate::future::Future;
 use crate::ops::{Deref, DerefMut};
 use crate::pin::Pin;
-use crate::ptr::{NonNull, Unique};
+use crate::ptr::{NonNull, Pointee, Unique};
+use crate::sync::atomic::AtomicMetadata;
 use crate::task::{Context, Poll};
 
 /// A marker trait which represents "panic safe" types in Rust.
@@ -243,9 +244,11 @@ impl RefUnwindSafe for crate::sync::atomic::AtomicU128 {}
 #[stable(feature = "unwind_safe_atomic_refs", since = "1.14.0")]
 impl RefUnwindSafe for crate::sync::atomic::AtomicBool {}
 
-#[cfg(target_has_atomic_load_store = "ptr")]
 #[stable(feature = "unwind_safe_atomic_refs", since = "1.14.0")]
-impl<T> RefUnwindSafe for crate::sync::atomic::AtomicPtr<T> {}
+impl<T> RefUnwindSafe for crate::sync::atomic::AtomicPtr<T> where
+    <T as Pointee>::Metadata: AtomicMetadata
+{
+}
 
 #[stable(feature = "catch_unwind", since = "1.9.0")]
 impl<T> Deref for AssertUnwindSafe<T> {
