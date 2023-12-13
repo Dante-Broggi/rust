@@ -246,13 +246,13 @@ impl AtomicMetadata for () {
 /// a 16-align ZST
 pub struct A16;
 
-#[cfg(target_has_atomic_load_store = "ptr_usize")]
+// #[cfg(target_has_atomic_load_store = "ptr_usize")]
 #[unstable(feature = "internals", issue = "none")]
 impl AtomicMetadata for usize {
     type PhantomAlign = A16;
 }
 
-#[cfg(target_has_atomic_load_store = "ptr_usize")]
+// #[cfg(target_has_atomic_load_store = "ptr_usize")]
 #[unstable(feature = "internals", issue = "none")]
 impl AtomicMetadata for isize {
     type PhantomAlign = A16;
