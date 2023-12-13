@@ -1330,6 +1330,11 @@ fn default_configuration(sess: &Session) -> Cfg {
             if sess.target.pointer_width as u64 == i {
                 insert_atomic(sym::ptr, layout.pointer_align.abi);
             }
+            if (2 * sess.target.pointer_width as u64) == i {
+                let a = Align::from_bytes(2 * layout.pointer_align.abi.bytes()).unwrap();
+                insert_atomic(sym::ptr_ptr, a);
+                insert_atomic(sym::ptr_usize, a);
+            }
         }
     }
 
@@ -1528,6 +1533,8 @@ impl CheckCfg {
 
         let atomic_values = &[
             sym::ptr,
+            sym::ptr_ptr,
+            sym::ptr_usize,
             sym::integer(8usize),
             sym::integer(16usize),
             sym::integer(32usize),
