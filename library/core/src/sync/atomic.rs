@@ -298,21 +298,21 @@ where
     p: UnsafeCell<*mut T>,
 }
 
-#[cfg(target_has_atomic_load_store = "ptr")]
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T> Default for AtomicPtr<T> {
+impl<T> Default for AtomicPtr<T>
+where
+    <T as Pointee>::Metadata: AtomicMetadata,
+{
     /// Creates a null `AtomicPtr<T>`.
     fn default() -> AtomicPtr<T> {
         AtomicPtr::new(crate::ptr::null_mut())
     }
 }
 
-#[cfg(target_has_atomic_load_store = "ptr")]
 #[stable(feature = "rust1", since = "1.0.0")]
-unsafe impl<T> Send for AtomicPtr<T> {}
-#[cfg(target_has_atomic_load_store = "ptr")]
+unsafe impl<T: ?Sized> Send for AtomicPtr<T> where <T as Pointee>::Metadata: AtomicMetadata {}
 #[stable(feature = "rust1", since = "1.0.0")]
-unsafe impl<T> Sync for AtomicPtr<T> {}
+unsafe impl<T: ?Sized> Sync for AtomicPtr<T> where <T as Pointee>::Metadata: AtomicMetadata {}
 
 /// Atomic memory orderings
 ///
@@ -2097,9 +2097,11 @@ impl From<bool> for AtomicBool {
     }
 }
 
-#[cfg(target_has_atomic_load_store = "ptr")]
 #[stable(feature = "atomic_from", since = "1.23.0")]
-impl<T> From<*mut T> for AtomicPtr<T> {
+impl<T> From<*mut T> for AtomicPtr<T>
+where
+    <T as Pointee>::Metadata: AtomicMetadata,
+{
     /// Converts a `*mut T` into an `AtomicPtr<T>`.
     #[inline]
     fn from(p: *mut T) -> Self {
@@ -3759,17 +3761,21 @@ impl fmt::Debug for AtomicBool {
     }
 }
 
-#[cfg(target_has_atomic_load_store = "ptr")]
 #[stable(feature = "atomic_debug", since = "1.3.0")]
-impl<T> fmt::Debug for AtomicPtr<T> {
+impl<T> fmt::Debug for AtomicPtr<T>
+where
+    <T as Pointee>::Metadata: AtomicMetadata,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.load(Ordering::Relaxed), f)
     }
 }
 
-#[cfg(target_has_atomic_load_store = "ptr")]
 #[stable(feature = "atomic_pointer", since = "1.24.0")]
-impl<T> fmt::Pointer for AtomicPtr<T> {
+impl<T> fmt::Pointer for AtomicPtr<T>
+where
+    <T as Pointee>::Metadata: AtomicMetadata,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Pointer::fmt(&self.load(Ordering::SeqCst), f)
     }
