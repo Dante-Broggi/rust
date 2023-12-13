@@ -225,6 +225,18 @@ use crate::intrinsics;
 
 use crate::hint::spin_loop;
 
+/// A pointer metadata type which supports atomic pointers.
+#[unstable(feature = "internals", issue = "none")]
+pub trait AtomicMetadata {
+    /// req align ZST
+    type PhantomAlign;
+}
+#[cfg(target_has_atomic_load_store = "ptr")]
+#[unstable(feature = "internals", issue = "none")]
+impl AtomicMetadata for () {
+    type PhantomAlign = ();
+}
+
 // Some architectures don't have byte-sized atomics, which results in LLVM
 // emulating them using a LL/SC loop. However for AtomicBool we can take
 // advantage of the fact that it only ever contains 0 or 1 and use atomic OR/AND
