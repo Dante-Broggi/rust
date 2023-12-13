@@ -224,6 +224,8 @@ use crate::fmt;
 use crate::intrinsics;
 
 use crate::hint::spin_loop;
+use crate::marker::PhantomData;
+use crate::ptr::Pointee;
 
 /// A pointer metadata type which supports atomic pointers.
 #[unstable(feature = "internals", issue = "none")]
@@ -289,7 +291,11 @@ unsafe impl Sync for AtomicBool {}
 #[cfg_attr(target_pointer_width = "16", repr(C, align(2)))]
 #[cfg_attr(target_pointer_width = "32", repr(C, align(4)))]
 #[cfg_attr(target_pointer_width = "64", repr(C, align(8)))]
-pub struct AtomicPtr<T> {
+pub struct AtomicPtr<T: ?Sized>
+where
+    <T as Pointee>::Metadata: AtomicMetadata,
+{
+    _align: PhantomData<<<T as Pointee>::Metadata as AtomicMetadata>::PhantomAlign>,
     p: UnsafeCell<*mut T>,
 }
 
@@ -1215,7 +1221,7 @@ impl<T> AtomicPtr<T> {
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_const_stable(feature = "const_atomic_new", since = "1.24.0")]
     pub const fn new(p: *mut T) -> AtomicPtr<T> {
-        AtomicPtr { p: UnsafeCell::new(p) }
+        AtomicPtr { _align: PhantomData, p: UnsafeCell::new(p) }
     }
 
     /// Creates a new `AtomicPtr` from a pointer.
