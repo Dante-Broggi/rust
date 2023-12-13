@@ -195,6 +195,7 @@ impl<'a, 'tcx, V: CodegenObject> OperandRef<'tcx, V> {
 
     /// Asserts that this operand refers to a scalar and returns
     /// a reference to its value.
+    #[track_caller]
     pub fn immediate(self) -> V {
         match self.val {
             OperandValue::Immediate(s) => s,
