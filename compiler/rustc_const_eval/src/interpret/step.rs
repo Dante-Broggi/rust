@@ -295,7 +295,7 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
 
     /// Writes the aggregate to the destination.
     #[instrument(skip(self), level = "trace")]
-    fn write_aggregate(
+    pub fn write_aggregate(
         &mut self,
         kind: &mir::AggregateKind<'tcx>,
         operands: &IndexSlice<FieldIdx, mir::Operand<'tcx>>,

@@ -33,8 +33,9 @@ pub use self::terminator::FnArg;
 pub use self::validity::{CtfeValidationMode, RefTracking};
 pub use self::visitor::ValueVisitor;
 
+pub use self::operand::Operand;
+
 use self::{
-    operand::Operand,
     place::{MemPlace, Place},
 };
 

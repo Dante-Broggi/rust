@@ -75,7 +75,7 @@ impl<Prov: Provenance> Immediate<Prov> {
     }
 
     #[inline]
-    #[cfg_attr(debug_assertions, track_caller)] // only in debug builds due to perf (see #98980)
+    #[cfg_attr(any(debug_assertions, miri), track_caller)] // only in debug builds due to perf (see #98980)
     pub fn to_scalar(self) -> Scalar<Prov> {
         match self {
             Immediate::Scalar(val) => val,
@@ -85,7 +85,7 @@ impl<Prov: Provenance> Immediate<Prov> {
     }
 
     #[inline]
-    #[cfg_attr(debug_assertions, track_caller)] // only in debug builds due to perf (see #98980)
+    #[cfg_attr(any(debug_assertions, miri), track_caller)] // only in debug builds due to perf (see #98980)
     pub fn to_scalar_pair(self) -> (Scalar<Prov>, Scalar<Prov>) {
         match self {
             Immediate::ScalarPair(val1, val2) => (val1, val2),
@@ -315,6 +315,7 @@ impl<'tcx, Prov: Provenance> ImmTy<'tcx, Prov> {
 
 impl<'tcx, Prov: Provenance> Projectable<'tcx, Prov> for ImmTy<'tcx, Prov> {
     #[inline(always)]
+    #[track_caller]
     fn layout(&self) -> TyAndLayout<'tcx> {
         self.layout
     }
@@ -349,7 +350,7 @@ impl<'tcx, Prov: Provenance> Projectable<'tcx, Prov> for ImmTy<'tcx, Prov> {
 /// or still in memory. The latter is an optimization, to delay reading that chunk of
 /// memory and to avoid having to store arbitrary-sized data here.
 #[derive(Copy, Clone, Debug)]
-pub(super) enum Operand<Prov: Provenance = CtfeProvenance> {
+pub enum Operand<Prov: Provenance = CtfeProvenance> {
     Immediate(Immediate<Prov>),
     Indirect(MemPlace<Prov>),
 }

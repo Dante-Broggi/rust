@@ -49,7 +49,7 @@ impl<Prov: Provenance> MemPlaceMeta<Prov> {
 }
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
-pub(super) struct MemPlace<Prov: Provenance = CtfeProvenance> {
+pub struct MemPlace<Prov: Provenance = CtfeProvenance> {
     /// The pointer can be a pure integer, with the `None` provenance.
     pub ptr: Pointer<Option<Prov>>,
     /// Metadata for unsized places. Interpretation is up to the type.
