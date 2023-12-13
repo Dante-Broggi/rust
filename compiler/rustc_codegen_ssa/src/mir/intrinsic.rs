@@ -353,11 +353,11 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                                         src0 = bx.ptrtoint(src0, bx.type_isize());
                                     }
                                     let cmp0 = bx.zext(cmp0, bx.type_i64());
-                                    let cmp0 = bx.shl(cmp0, bx.const_int(bx.type_i64(), 32));
                                     let src0 = bx.zext(src0, bx.type_i64());
-                                    let src0 = bx.shl(src0, bx.const_int(bx.type_i64(), 32));
                                     let cmp1 = bx.zext(cmp1, bx.type_i64());
                                     let src1 = bx.zext(src1, bx.type_i64());
+                                    let cmp1 = bx.shl(cmp1, bx.const_int(bx.type_i64(), 32));
+                                    let src1 = bx.shl(src1, bx.const_int(bx.type_i64(), 32));
                                     (bx.or(cmp0, cmp1), bx.or(src0, src1))
                                 }
                                 (
@@ -372,11 +372,11 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                                         src0 = bx.ptrtoint(src0, bx.type_isize());
                                     }
                                     let cmp0 = bx.zext(cmp0, bx.type_i128());
-                                    let cmp0 = bx.shl(cmp0, bx.const_int(bx.type_i128(), 64));
                                     let src0 = bx.zext(src0, bx.type_i128());
-                                    let src0 = bx.shl(src0, bx.const_int(bx.type_i128(), 64));
                                     let cmp1 = bx.zext(cmp1, bx.type_i128());
                                     let src1 = bx.zext(src1, bx.type_i128());
+                                    let cmp1 = bx.shl(cmp1, bx.const_int(bx.type_i128(), 64));
+                                    let src1 = bx.shl(src1, bx.const_int(bx.type_i128(), 64));
                                     (bx.or(cmp0, cmp1), bx.or(src0, src1))
                                 }
                                 (x, y) => bug!("not immediate: {:?} OR {:?}", x, y),
@@ -476,8 +476,8 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                                     // Combine the pair into a single bx scalar
                                     // in [y1, y0] order, for the bx atomic store
                                     let y0 = bx.zext(y0, bx.type_i64());
-                                    let y0 = bx.shl(y0, bx.const_int(bx.type_i64(), 32));
                                     let y1 = bx.zext(y1, bx.type_i64());
+                                    let y1 = bx.shl(y1, bx.const_int(bx.type_i64(), 32));
                                     bx.or(y0, y1)
                                 }
                                 OperandValue::Pair(mut y0, y1) if size.bits() == 128 => {
@@ -490,8 +490,8 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                                     // Combine the pair into a single bx scalar
                                     // in [y1, y0] order, for the bx atomic store
                                     let y0 = bx.zext(y0, bx.type_i128());
-                                    let y0 = bx.shl(y0, bx.const_int(bx.type_i128(), 64));
                                     let y1 = bx.zext(y1, bx.type_i128());
+                                    let y1 = bx.shl(y1, bx.const_int(bx.type_i128(), 64));
                                     bx.or(y0, y1)
                                 }
                                 y => bug!("not immediate: {:?}", y),
