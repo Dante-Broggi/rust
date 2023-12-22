@@ -474,6 +474,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
 
                         let ty = fn_args.type_at(0);
                         if int_type_width_signed(ty, bx.tcx()).is_some() || ty.is_unsafe_ptr() {
+                            let size = bx.layout_of(ty).size;
                             let ptr = args[0].immediate();
                             let val = match args[1].val {
                                 OperandValue::Immediate(y) => {
@@ -484,7 +485,35 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                                     } else {
                                         y
                                     }
-                                },
+                                }
+                                OperandValue::Pair(mut y0, y1) if size.bits() == 64 => {
+                                    // FIXME: what if y1 is also a pointer type?
+                                    if ty.is_unsafe_ptr() {
+                                        // Some platforms do not support atomic operations on pointers,
+                                        // so we cast to integer first.
+                                        y0 = bx.ptrtoint(y0, bx.type_isize());
+                                    }
+                                    // Combine the pair into a single bx scalar
+                                    // in [y1, y0] order, for the bx atomic store
+                                    let y0 = bx.zext(y0, bx.type_i64());
+                                    let y1 = bx.zext(y1, bx.type_i64());
+                                    let y1 = bx.shl(y1, bx.const_int(bx.type_i64(), 32));
+                                    bx.or(y0, y1)
+                                }
+                                OperandValue::Pair(mut y0, y1) if size.bits() == 128 => {
+                                    // FIXME: what if y1 is also a pointer type?
+                                    if ty.is_unsafe_ptr() {
+                                        // Some platforms do not support atomic operations on pointers,
+                                        // so we cast to integer first.
+                                        y0 = bx.ptrtoint(y0, bx.type_isize());
+                                    }
+                                    // Combine the pair into a single bx scalar
+                                    // in [y1, y0] order, for the bx atomic store
+                                    let y0 = bx.zext(y0, bx.type_i128());
+                                    let y1 = bx.zext(y1, bx.type_i128());
+                                    let y1 = bx.shl(y1, bx.const_int(bx.type_i128(), 64));
+                                    bx.or(y0, y1)
+                                }
                                 y => bug!("not immediate: {:?}", y),
                             };
                             bx.atomic_rmw(atom_op, ptr, val, parse_ordering(bx, ordering))
