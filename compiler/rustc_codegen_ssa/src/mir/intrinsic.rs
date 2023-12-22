@@ -391,13 +391,19 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                         let ty = fn_args.type_at(0);
                         if int_type_width_signed(ty, bx.tcx()).is_some() || ty.is_unsafe_ptr() {
                             let size = bx.layout_of(ty).size;
-                            let mut val = args[1].immediate();
                             let ptr = args[0].immediate();
-                            if ty.is_unsafe_ptr() {
-                                // Some platforms do not support atomic operations on pointers,
-                                // so we cast to integer first.
-                                val = bx.ptrtoint(val, bx.type_isize());
-                            }
+                            let val = match args[1].val {
+                                OperandValue::Immediate(y) => {
+                                    if ty.is_unsafe_ptr() {
+                                        // Some platforms do not support atomic operations on pointers,
+                                        // so we cast to integer first.
+                                        bx.ptrtoint(y, bx.type_isize())
+                                    } else {
+                                        y
+                                    }
+                                },
+                                y => bug!("not immediate: {:?}", y),
+                            };
                             bx.atomic_store(val, ptr, parse_ordering(bx, ordering), size);
                             return;
                         } else {
