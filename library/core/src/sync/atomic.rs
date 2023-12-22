@@ -239,6 +239,25 @@ impl AtomicMetadata for () {
     type PhantomAlign = ();
 }
 
+
+#[unstable(feature = "internals", issue = "none")]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(align(16))]
+/// a 16-align ZST
+pub struct A16;
+
+#[cfg(target_has_atomic_load_store = "ptr_usize")]
+#[unstable(feature = "internals", issue = "none")]
+impl AtomicMetadata for usize {
+    type PhantomAlign = A16;
+}
+
+#[cfg(target_has_atomic_load_store = "ptr_usize")]
+#[unstable(feature = "internals", issue = "none")]
+impl AtomicMetadata for isize {
+    type PhantomAlign = A16;
+}
+
 // Some architectures don't have byte-sized atomics, which results in LLVM
 // emulating them using a LL/SC loop. However for AtomicBool we can take
 // advantage of the fact that it only ever contains 0 or 1 and use atomic OR/AND
